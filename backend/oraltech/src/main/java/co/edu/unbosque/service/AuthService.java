@@ -22,28 +22,34 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
 
     public AuthenticationResponse register(RegisterRequest request) {
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Username already exists");
-        }
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
-        }
+        try {
+            if (userRepository.existsByUsername(request.getUsername())) {
+                throw new RuntimeException("Username already exists");
+            }
+            if (userRepository.existsByEmail(request.getEmail())) {
+                throw new RuntimeException("Email already exists");
+            }
 
-        var user = User.builder()
-                .username(request.getUsername())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .name(request.getName())
-                .email(request.getEmail())
-                .role(request.getRole())
-                .build();
+            var user = User.builder()
+                    .username(request.getUsername())
+                    .password(passwordEncoder.encode(request.getPassword()))
+                    .name(request.getName())
+                    .email(request.getEmail())
+                    .role(request.getRole())
+                    .build();
 
-        userRepository.save(user);
-        var jwtToken = jwtService.generateToken(user);
-        return AuthenticationResponse.builder()
-                .token(jwtToken)
-                .username(user.getUsername())
-                .role(user.getRole().name())
-                .build();
+            userRepository.save(user);
+            var jwtToken = jwtService.generateToken(user);
+            return AuthenticationResponse.builder()
+                    .token(jwtToken)
+                    .username(user.getUsername())
+                    .role(user.getRole().name())
+                    .build();
+        } catch (Exception e) {
+            System.err.println("REGISTER ERROR: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
