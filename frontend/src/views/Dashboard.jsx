@@ -70,11 +70,13 @@ const Dashboard = () => {
                     gap: '2rem' 
                 }}>
                     {[
-                        { title: 'Pacientes', icon: <Users size={32} />, color: '#0077b6' },
-                        { title: 'Citas Hoy', icon: <Calendar size={32} />, color: '#00b4d8' },
-                        { title: 'Historias Clínicas', icon: <ClipboardList size={32} />, color: '#90e0ef' }
+                        { title: 'Pacientes', icon: <Users size={32} />, color: '#0077b6', path: '/patients' },
+                        { title: 'Citas Hoy', icon: <Calendar size={32} />, color: '#00b4d8', path: '/dashboard' },
+                        { title: 'Historias Clínicas', icon: <ClipboardList size={32} />, color: '#90e0ef', path: '/dashboard' }
                     ].map((item, index) => (
-                        <div key={index} className="auth-card" style={{ 
+                        <div key={index} className="auth-card" 
+                        onClick={() => navigate(item.path)}
+                        style={{ 
                             padding: '2rem', 
                             display: 'flex', 
                             flexDirection: 'column', 
