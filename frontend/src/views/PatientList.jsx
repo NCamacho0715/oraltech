@@ -1,0 +1,155 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getAllPatients, deletePatient } from '../services/patientService';
+import { UserPlus, Search, Edit2, Trash2, Eye, LayoutGrid, List as ListIcon, Stethoscope, Users, ArrowLeft } from 'lucide-react';
+
+const PatientList = () => {
+    const [patients, setPatients] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        loadPatients();
+    }, []);
+
+    const loadPatients = async () => {
+        try {
+            const data = await getAllPatients();
+            setPatients(data);
+        } catch (error) {
+            console.error('Error loading patients:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (window.confirm('¿Está seguro de que desea eliminar este paciente?')) {
+            try {
+                await deletePatient(id);
+                loadPatients();
+            } catch (error) {
+                alert('Error al eliminar paciente');
+            }
+        }
+    };
+
+    const filteredPatients = patients.filter(p => 
+        (p.names?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (p.firstSurname?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (p.idNumber?.includes(searchTerm))
+    );
+
+    return (
+        <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <button 
+                        onClick={() => navigate('/dashboard')}
+                        style={{ border: 'none', background: 'var(--secondary-soft)', color: 'var(--primary)', padding: '0.6rem', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Volver al Dashboard"
+                    >
+                        <ArrowLeft size={20} />
+                    </button>
+                    <div>
+                        <h1 style={{ color: 'var(--text-main)', fontSize: '2rem', fontWeight: 700 }}>Pacientes</h1>
+                        <p style={{ color: 'var(--text-secondary)' }}>Gestión de la base de datos de pacientes.</p>
+                    </div>
+                </div>
+                <button 
+                    onClick={() => navigate('/patients/new')}
+                    className="btn-primary" 
+                    style={{ width: 'auto', padding: '0.8rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                    <UserPlus size={20} />
+                    Nuevo Paciente
+                </button>
+            </div>
+
+            <div className="auth-card" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', maxWidth: '100%' }}>
+                <Search size={20} color="var(--text-secondary)" />
+                <input 
+                    type="text" 
+                    placeholder="Buscar por nombre, apellido o identificación..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{ 
+                        flex: 1, 
+                        border: 'none', 
+                        outline: 'none', 
+                        fontSize: '1rem', 
+                        background: 'transparent'
+                    }}
+                />
+            </div>
+
+            {loading ? (
+                <div style={{ textAlign: 'center', padding: '3rem' }}>Cargando pacientes...</div>
+            ) : filteredPatients.length === 0 ? (
+                <div className="auth-card" style={{ textAlign: 'center', padding: '4rem' }}>
+                    <Users size={48} color="var(--secondary)" style={{ marginBottom: '1rem' }} />
+                    <p style={{ color: 'var(--text-secondary)' }}>No se encontraron pacientes.</p>
+                </div>
+            ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                    {filteredPatients.map(patient => (
+                        <div 
+                            key={patient.id} 
+                            className="auth-card" 
+                            onClick={() => navigate(`/patients/${patient.id}`)}
+                            style={{ padding: '1.5rem', position: 'relative', cursor: 'pointer' }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                <div style={{ 
+                                    width: '45px', 
+                                    height: '45px', 
+                                    borderRadius: '12px', 
+                                    background: 'var(--secondary-soft)', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    color: 'var(--primary)'
+                                }}>
+                                    <Eye size={24} />
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); navigate(`/patients/edit/${patient.id}`); }} 
+                                        style={{ color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }} 
+                                        title="Editar"
+                                    >
+                                        <Edit2 size={18} />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleDelete(patient.id); }} 
+                                        style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }} 
+                                        title="Eliminar"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                            <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.2rem' }}>
+                                {patient.names} {patient.firstSurname}
+                            </h3>
+                            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                                {patient.idType}: {patient.idNumber}
+                            </p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f0f0f0', paddingTop: '1rem', marginTop: '1rem' }}>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                    <strong>Edad:</strong> {patient.age} años
+                                </div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                    <strong>Celular:</strong> {patient.cellphone || 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default PatientList;
