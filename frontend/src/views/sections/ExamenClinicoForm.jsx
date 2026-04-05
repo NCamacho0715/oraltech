@@ -2,33 +2,52 @@ import React, { useState, useEffect } from 'react';
 import { Save, CheckCircle } from 'lucide-react';
 import clinicaService from '../../services/clinicaService';
 
+// Reusable components outside to avoid focus/re-mount issues
+const SelectField = ({ label, field, options, data, onChange, readOnly }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+        <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</label>
+        <select
+            value={data[field] || ''}
+            disabled={readOnly}
+            onChange={(e) => onChange(field, e.target.value)}
+            style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.95rem', background: 'var(--surface)', color: 'var(--text-main)', outline: 'none', transition: 'border-color 0.3s', cursor: readOnly ? 'default' : 'pointer' }}
+        >
+            {options.map(opt => <option key={opt.val} value={opt.val}>{opt.label}</option>)}
+        </select>
+    </div>
+);
+
+const CheckboxField = ({ label, field, data, onChange, readOnly, children }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+        <label style={{ 
+            display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.6rem 0.8rem', 
+            background: 'var(--surface)', border: '1px solid var(--border-color)', borderRadius: '8px',
+            cursor: readOnly ? 'default' : 'pointer', userSelect: 'none', minHeight: '45px', width: '100%',
+            opacity: readOnly ? 0.8 : 1
+        }}>
+            <input
+                type="checkbox"
+                checked={data[field] || false}
+                onChange={(e) => !readOnly && onChange(field, e.target.checked)}
+                disabled={readOnly}
+                style={{ width: '16px', height: '16px', flexShrink: 0, accentColor: 'var(--primary)' }}
+            />
+            <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-main)', lineHeight: '1.2' }}>{label}</span>
+        </label>
+        {data[field] && children}
+    </div>
+);
+
 const ExamenClinicoForm = ({ historiaId, readOnly }) => {
   const [data, setData] = useState({
-    examenFisico: '',
-    tmAticulacion: 'NORMAL',
-    tmMusculos: 'NORMAL',
-    tmLabios: 'NORMAL',
-    tmLengua: 'NORMAL',
-    tmPaladar: 'NORMAL',
-    tmPisoBoca: 'NORMAL',
-    tmEnciana: 'NORMAL',
-    tmGlandulas: 'NORMAL',
-    tmOrofaringe: 'NORMAL',
-    idxHigiene: 'BUENA',
-    idxPlaca: 0.0,
-    idxCalculo: 0.0,
-    idxGingivitis: 0.0,
-    idxRecidiva: 0.0,
-    ocuMasticacion: 'BILATERAL',
-    ocuApertura: 0.0,
-    ocuProyeccion: 0.0,
-    ocuLateralidad: 0.0,
-    habSuccDig: false,
-    habDegliAtip: false,
-    habSuccLabial: false,
-    habRespBucal: false,
-    habOtros: ''
+    lengua: 'NORMAL', carrillos: 'NORMAL', frenillos: 'NORMAL', paladar: 'NORMAL', pisoBoca: 'NORMAL', labios: 'NORMAL', comisuras: 'NORMAL', glandulas: 'NORMAL', pigmentaciones: 'NORMAL',
+    hipoplasias: false, amelogenesis: false, manchas: false, desgastes: false, tdFracturas: false, agenesia: false, supernumerario: false, ausenteObs: '',
+    micrognasia: false, macrognasia: false, torus: false, maxOtros: '',
+    dolorArticular: false, dolorMuscular: false, ruidos: false, limitacion: false, desviacion: false, atmObservaciones: '',
+    sobremordidaH: 0.0, sobremordidaV: 0.0, oclusionTipo: '', lineaMedia: '', patronMasticacion: 'BILATERAL',
+    higiene: 'BUENA', habHalitosis: false, bruxismo: false, habOtros: ''
   });
+
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -39,8 +58,18 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
   const loadData = async () => {
     try {
       const res = await clinicaService.getExamen(historiaId);
-      if (res.data) setData(res.data);
+      if (res.data) {
+          const cleanData = {};
+          Object.keys(res.data).forEach(key => {
+            if (res.data[key] !== null) cleanData[key] = res.data[key];
+          });
+          setData(prev => ({ ...prev, ...cleanData }));
+      }
     } catch (e) {}
+  };
+
+  const handleChange = (field, value) => {
+    setData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -57,118 +86,147 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
     }
   };
 
-  const Select = ({ label, field, options }) => (
-    <div style={{ marginBottom: '1rem' }}>
-      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>{label}</label>
-      <select
-        value={data[field]}
-        disabled={readOnly}
-        onChange={(e) => setData({...data, [field]: e.target.value})}
-        style={{ width: '100%', padding: '0.8rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.95rem', background: readOnly ? '#f8fafc' : '#ffffff', outline: 'none', transition: 'border-color 0.3s', cursor: readOnly ? 'default' : 'pointer' }}
-        onFocus={(e) => !readOnly && (e.target.style.borderColor = 'var(--primary)')}
-        onBlur={(e) => !readOnly && (e.target.style.borderColor = '#e2e8f0')}
-      >
-        {options.map(opt => <option key={opt.val} value={opt.val}>{opt.label}</option>)}
-      </select>
-    </div>
-  );
-
-  const CheckboxText = ({ label, field }) => (
-    <label style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '0.8rem', 
-        padding: '0.8rem 1rem', 
-        background: 'var(--background)', 
-        border: '1px solid #e2e8f0',
-        borderRadius: '8px',
-        cursor: readOnly ? 'default' : 'pointer',
-        userSelect: 'none',
-        transition: 'all 0.2s ease',
-        opacity: readOnly ? 0.8 : 1
-    }}
-    onMouseEnter={(e) => !readOnly && (e.currentTarget.style.borderColor = 'var(--primary)')}
-    onMouseLeave={(e) => !readOnly && (e.currentTarget.style.borderColor = '#e2e8f0')}
-    >
-      <input
-        type="checkbox"
-        checked={data[field]}
-        onChange={(e) => !readOnly && setData({ ...data, [field]: e.target.checked })}
-        disabled={readOnly}
-        style={{ width: '18px', height: '18px', accentColor: 'var(--primary)', cursor: readOnly ? 'default' : 'pointer' }}
-      />
-      <span style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--text-main)' }}>{label}</span>
-    </label>
-  );
-
-  const normalcyOptions = [
-    {val: 'NORMAL', label: 'Normal'},
-    {val: 'ANORMAL', label: 'Anormal'}
-  ];
+  const normalcyOptions = [{val: 'NORMAL', label: 'Normal'}, {val: 'ANORMAL', label: 'Anormal'}];
+  const commonInputStyle = { width: '100%', padding: '0.5rem', border: '1px solid var(--primary)', borderRadius: '6px', background: 'var(--surface)', color: 'var(--text-main)', fontSize: '0.85rem' };
 
   return (
     <form onSubmit={handleSubmit} style={{ animation: 'fadeIn 0.4s ease-out' }}>
-      <div>
-        <h3 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-main)', borderBottom: '2px solid rgba(0, 119, 182, 0.1)', paddingBottom: '1rem', marginBottom: '2rem' }}>
+        <h3 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-main)', borderBottom: '2px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '2rem' }}>
             Examen Clínico
         </h3>
 
-        {/* Tejidos Blandos */}
-        <div style={{ marginBottom: '2.5rem' }}>
-          <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1.2rem' }}>Examen de Tejidos Blandos (ATM y Mucosa)</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
-            <Select label="Articulación TM" field="tmAticulacion" options={normalcyOptions} />
-            <Select label="Músculos" field="tmMusculos" options={normalcyOptions} />
-            <Select label="Labios" field="tmLabios" options={normalcyOptions} />
-            <Select label="Lengua" field="tmLengua" options={normalcyOptions} />
-            <Select label="Paladar" field="tmPaladar" options={normalcyOptions} />
-            <Select label="Piso de Boca" field="tmPisoBoca" options={normalcyOptions} />
-            <Select label="Encía" field="tmEnciana" options={normalcyOptions} />
-            <Select label="Glándulas Salivales" field="tmGlandulas" options={normalcyOptions} />
-            <Select label="Orofaringe" field="tmOrofaringe" options={normalcyOptions} />
-          </div>
-        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem' }}>
+            
+            {/* COLUMNA IZQUIERDA */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <section>
+                    <h4 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1rem', fontWeight: 700 }}>Tejidos Blandos</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <SelectField label="Lengua" field="lengua" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
+                        <SelectField label="Carrillos" field="carrillos" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
+                        <SelectField label="Frenillos" field="frenillos" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
+                        <SelectField label="Paladar" field="paladar" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
+                        <SelectField label="Piso de Boca" field="pisoBoca" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
+                        <SelectField label="Labios" field="labios" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
+                        <SelectField label="Comisuras" field="comisuras" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
+                        <SelectField label="Glándulas Salivales" field="glandulas" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
+                        <SelectField label="Pigmentaciones" field="pigmentaciones" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
+                    </div>
+                </section>
 
-        {/* Hábitos */}
-        <div style={{ marginBottom: '2.5rem' }}>
-            <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1.2rem' }}>Hábitos</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
-                <CheckboxText label="Succión Digital" field="habSuccDig" />
-                <CheckboxText label="Deglución Atípica" field="habDegliAtip" />
-                <CheckboxText label="Succión Labial" field="habSuccLabial" />
-                <CheckboxText label="Respiración Bucal" field="habRespBucal" />
+                <section>
+                    <h4 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1rem', fontWeight: 700 }}>Tejidos Duros</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+                        <CheckboxField label="Hipoplasias" field="hipoplasias" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Amelogenesis" field="amelogenesis" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Manchas" field="manchas" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Desgastes" field="desgastes" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Fracturas" field="tdFracturas" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Agenesia" field="agenesia" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Supernumerario" field="supernumerario" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Diente Ausente" field="ausenteObs" checked={!!data.ausenteObs} onChange={(f, v) => handleChange('ausenteObs', v ? 'Sí' : '')} data={data} readOnly={readOnly}>
+                            <input type="text" placeholder="¿Cuáles?" value={data.ausenteObs} onChange={e => handleChange('ausenteObs', e.target.value)} style={commonInputStyle} />
+                        </CheckboxField>
+                    </div>
+                </section>
+
+                <section>
+                    <h4 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1rem', fontWeight: 700 }}>Maxilares</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+                        <CheckboxField label="Micrognasia" field="micrognasia" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Macrognasia" field="macrognasia" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Torus" field="torus" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Otros" field="maxOtros" checked={!!data.maxOtros} onChange={(f, v) => handleChange('maxOtros', v ? 'Sí' : '')} data={data} readOnly={readOnly}>
+                             <input type="text" placeholder="¿Cuáles?" value={data.maxOtros} onChange={e => handleChange('maxOtros', e.target.value)} style={commonInputStyle} />
+                        </CheckboxField>
+                    </div>
+                </section>
+            </div>
+
+            {/* COLUMNA DERECHA */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <section>
+                    <h4 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1rem', fontWeight: 700 }}>ATM</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+                        <CheckboxField label="Dolor Articular" field="dolorArticular" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Dolor Muscular" field="dolorMuscular" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Ruidos" field="ruidos" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Limitación de Apertura" field="limitacion" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Desviación" field="desviacion" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                            <label>Observaciones ATM</label>
+                            <input type="text" value={data.atmObservaciones} onChange={e => handleChange('atmObservaciones', e.target.value)} placeholder="Detalle aquí..." />
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h4 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1rem', fontWeight: 700 }}>Oclusión</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div className="form-group">
+                            <label>S. Mordida Horiz (mm)</label>
+                            <input type="number" step="0.1" value={data.sobremordidaH} onChange={e => handleChange('sobremordidaH', parseFloat(e.target.value))} />
+                        </div>
+                        <div className="form-group">
+                            <label>S. Mordida Vert (mm)</label>
+                            <input type="number" step="0.1" value={data.sobremordidaV} onChange={e => handleChange('sobremordidaV', parseFloat(e.target.value))} />
+                        </div>
+                        <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                            <label>Tipo de Oclusión</label>
+                            <input type="text" value={data.oclusionTipo} onChange={e => handleChange('oclusionTipo', e.target.value)} placeholder="Ej. Clase I Angle..." />
+                        </div>
+                        <div className="form-group">
+                            <label>Línea Media</label>
+                            <input type="text" value={data.lineaMedia} onChange={e => handleChange('lineaMedia', e.target.value)} placeholder="Desviación..." />
+                        </div>
+                        <div className="form-group">
+                            <label>Patrón Masticación</label>
+                            <select value={data.patronMasticacion} onChange={e => handleChange('patronMasticacion', e.target.value)}>
+                                <option value="BILATERAL">Bilateral</option>
+                                <option value="DERECHA">Derecha</option>
+                                <option value="IZQUIERDA">Izquierda</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h4 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1rem', fontWeight: 700 }}>Hábitos e Higiene</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.8rem' }}>
+                        <div className="form-group">
+                            <label>Grado de Higiene Oral</label>
+                            <select value={data.higiene} onChange={e => handleChange('higiene', e.target.value)}>
+                                <option value="BUENA">Buena</option>
+                                <option value="REGULAR">Regular</option>
+                                <option value="MALA">Mala</option>
+                            </select>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+                            <CheckboxField label="Halitosis" field="habHalitosis" data={data} onChange={handleChange} readOnly={readOnly} />
+                            <CheckboxField label="Bruxismo" field="bruxismo" data={data} onChange={handleChange} readOnly={readOnly} />
+                        </div>
+                        <div className="form-group">
+                            <label>Otros Hábitos</label>
+                            <textarea
+                                value={data.habOtros}
+                                onChange={e => handleChange('habOtros', e.target.value)}
+                                style={{ width: '100%', padding: '0.8rem', border: '1px solid var(--border-color)', borderRadius: '8px', minHeight: '60px', background: 'var(--surface)', color: 'var(--text-main)', resize: 'none' }}
+                                placeholder="Succión digital, deglución atípica..."
+                            />
+                        </div>
+                    </div>
+                </section>
             </div>
         </div>
 
-        {/* General Physical */}
-        <div style={{ marginBottom: '2rem' }}>
-          <label style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Examen Físico General</label>
-          <textarea
-            value={data.examenFisico}
-            onChange={(e) => setData({ ...data, examenFisico: e.target.value })}
-            readOnly={readOnly}
-            style={{ width: '100%', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '120px', fontSize: '1rem', fontFamily: 'inherit', outline: 'none', background: readOnly ? '#f8fafc' : '#ffffff', resize: 'vertical', transition: 'border-color 0.3s' }}
-            placeholder="Descripción general..."
-            onFocus={(e) => !readOnly && (e.target.style.borderColor = 'var(--primary)')}
-            onBlur={(e) => !readOnly && (e.target.style.borderColor = '#e2e8f0')}
-          />
-        </div>
-
         {!readOnly && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '1.5rem', borderTop: '2px solid rgba(0, 119, 182, 0.1)' }}>
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn-primary"
-              style={{ width: 'auto', padding: '0.8rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: saving ? 0.7 : 1, margin: 0 }}
-            >
-              <Save size={18} /> 
-              {saving ? 'Guardando...' : 'Guardar Examen'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '1.5rem', borderTop: '2px solid var(--border-color)', marginTop: '2rem' }}>
+            <button type="submit" disabled={saving} className="btn-primary" style={{ width: 'auto', padding: '0.8rem 2.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: saving ? 0.7 : 1, margin: 0 }}>
+              <Save size={18} /> {saving ? 'Guardando...' : 'Guardar Examen'}
             </button>
-            {saved && <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 500 }}><CheckCircle size={18} /> Guardado</span>}
+            {saved && <span style={{ color: 'var(--success)', fontWeight: 500 }}><CheckCircle size={18} /> Guardado</span>}
           </div>
         )}
-      </div>
     </form>
   );
 };

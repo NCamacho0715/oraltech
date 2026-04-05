@@ -9,5 +9,10 @@ public enum TipoEvento {
     IMPLANTE,
     SELLANTE,
     PROTESIS,
+    TEMPORAL,
+    NUCLEO,
+    ABRASION,
+    DIASTEMA,
+    ROTACION,
     OTRO
 }

@@ -70,9 +70,9 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
                     value={diag.cie10} 
                     readOnly={readOnly}
                     onChange={e => setDiag({...diag, cie10: e.target.value})}
-                    style={{ width: '100%', padding: '0.8rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.95rem', background: readOnly ? '#f8fafc' : '#ffffff', outline: 'none', transition: 'border-color 0.3s' }}
+                    style={{ width: '100%', padding: '0.8rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.95rem', background: 'var(--surface)', color: 'var(--text-main)', outline: 'none', transition: 'border-color 0.3s' }}
                     onFocus={(e) => !readOnly && (e.target.style.borderColor = 'var(--primary)')}
-                    onBlur={(e) => !readOnly && (e.target.style.borderColor = '#e2e8f0')}
+                    onBlur={(e) => !readOnly && (e.target.style.borderColor = 'var(--border-color)')}
                     placeholder="Ej: K021"
                 />
             </div>
@@ -83,9 +83,9 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
                     value={diag.otros} 
                     readOnly={readOnly}
                     onChange={e => setDiag({...diag, otros: e.target.value})}
-                    style={{ width: '100%', padding: '0.8rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.95rem', background: readOnly ? '#f8fafc' : '#ffffff', outline: 'none', transition: 'border-color 0.3s' }}
+                    style={{ width: '100%', padding: '0.8rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.95rem', background: 'var(--surface)', color: 'var(--text-main)', outline: 'none', transition: 'border-color 0.3s' }}
                     onFocus={(e) => !readOnly && (e.target.style.borderColor = 'var(--primary)')}
-                    onBlur={(e) => !readOnly && (e.target.style.borderColor = '#e2e8f0')}
+                    onBlur={(e) => !readOnly && (e.target.style.borderColor = 'var(--border-color)')}
                 />
             </div>
         </div>
@@ -96,9 +96,9 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
             value={diag.descripcion}
             readOnly={readOnly}
             onChange={(e) => setDiag({ ...diag, descripcion: e.target.value })}
-            style={{ width: '100%', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '8px', minHeight: '100px', fontSize: '1rem', fontFamily: 'inherit', outline: 'none', background: readOnly ? '#f8fafc' : '#ffffff', resize: 'vertical', transition: 'border-color 0.3s' }}
+            style={{ width: '100%', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '8px', minHeight: '100px', fontSize: '1rem', fontFamily: 'inherit', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)', resize: 'vertical', transition: 'border-color 0.3s' }}
             onFocus={(e) => !readOnly && (e.target.style.borderColor = 'var(--primary)')}
-            onBlur={(e) => !readOnly && (e.target.style.borderColor = '#e2e8f0')}
+            onBlur={(e) => !readOnly && (e.target.style.borderColor = 'var(--border-color)')}
           />
         </div>
 
@@ -108,10 +108,10 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
             value={pron.descripcion}
             readOnly={readOnly}
             onChange={(e) => setPron({ ...pron, descripcion: e.target.value })}
-            style={{ width: '100%', padding: '1rem', border: '1px solid #fca5a5', borderRadius: '8px', minHeight: '80px', fontSize: '1rem', fontFamily: 'inherit', outline: 'none', background: readOnly ? '#fef2f2' : '#fff5f5', resize: 'vertical', transition: 'border-color 0.3s' }}
+            style={{ width: '100%', padding: '1rem', border: '1px solid rgba(230, 57, 70, 0.4)', borderRadius: '8px', minHeight: '80px', fontSize: '1rem', fontFamily: 'inherit', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)', resize: 'vertical', transition: 'border-color 0.3s' }}
             placeholder="Favorable, reservado, etc."
-            onFocus={(e) => !readOnly && (e.target.style.borderColor = '#ef4444')}
-            onBlur={(e) => !readOnly && (e.target.style.borderColor = '#fca5a5')}
+            onFocus={(e) => !readOnly && (e.target.style.borderColor = 'var(--accent)')}
+            onBlur={(e) => !readOnly && (e.target.style.borderColor = 'rgba(230, 57, 70, 0.4)')}
           />
         </div>
 
@@ -142,14 +142,14 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
                     placeholder="Especialidad" 
                     value={newInter.especialidad}
                     onChange={e => setNewInter({...newInter, especialidad: e.target.value})}
-                    style={{ flex: 1, padding: '0.6rem 1rem', border: '1px solid #90e0ef', borderRadius: '8px', outline: 'none', fontSize: '0.95rem' }}
+                    style={{ flex: 1, padding: '0.6rem 1rem', border: '1px solid var(--primary-light)', borderRadius: '8px', outline: 'none', fontSize: '0.95rem', background: 'var(--surface)', color: 'var(--text-main)' }}
                 />
                 <input 
                     type="text" 
                     placeholder="Descripción" 
                     value={newInter.descripcion}
                     onChange={e => setNewInter({...newInter, descripcion: e.target.value})}
-                    style={{ flex: 2, padding: '0.6rem 1rem', border: '1px solid #90e0ef', borderRadius: '8px', outline: 'none', fontSize: '0.95rem' }}
+                    style={{ flex: 2, padding: '0.6rem 1rem', border: '1px solid var(--primary-light)', borderRadius: '8px', outline: 'none', fontSize: '0.95rem', background: 'var(--surface)', color: 'var(--text-main)' }}
                 />
                 <button 
                     onClick={handleAddInter}
@@ -160,7 +160,7 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
             </div>
         )}
 
-        <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', background: '#ffffff', overflow: 'hidden' }}>
+        <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--surface)', overflow: 'hidden' }}>
             {inters.length === 0 && <p style={{ padding: '1.5rem', color: '#94a3b8', textAlign: 'center', margin: 0, fontStyle: 'italic' }}>No hay interconsultas registradas.</p>}
             {inters.map((i, idx) => (
                 <div key={i.id} style={{ 

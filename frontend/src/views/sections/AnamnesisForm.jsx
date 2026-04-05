@@ -48,19 +48,20 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
             style={{ 
                 width: '100%', 
                 padding: '1rem', 
-                border: '1px solid #e2e8f0', 
+                border: '1px solid var(--border-color)', 
                 borderRadius: '8px', 
                 minHeight: '120px', 
                 fontFamily: 'inherit',
                 fontSize: '1rem',
                 outline: 'none',
-                background: readOnly ? '#f8fafc' : '#ffffff',
+                background: 'var(--surface)',
+                color: 'var(--text-main)',
                 resize: 'vertical',
                 transition: 'border-color 0.3s'
             }}
             placeholder="¿Por qué viene el paciente?"
             onFocus={(e) => !readOnly && (e.target.style.borderColor = 'var(--primary)')}
-            onBlur={(e) => !readOnly && (e.target.style.borderColor = '#e2e8f0')}
+            onBlur={(e) => !readOnly && (e.target.style.borderColor = 'var(--border-color)')}
           />
         </div>
 
@@ -73,19 +74,20 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
             style={{ 
                 width: '100%', 
                 padding: '1rem', 
-                border: '1px solid #e2e8f0', 
+                border: '1px solid var(--border-color)', 
                 borderRadius: '8px', 
                 minHeight: '180px', 
                 fontFamily: 'inherit',
                 fontSize: '1rem',
                 outline: 'none',
-                background: readOnly ? '#f8fafc' : '#ffffff',
+                background: 'var(--surface)',
+                color: 'var(--text-main)',
                 resize: 'vertical',
                 transition: 'border-color 0.3s'
             }}
             placeholder="Descripción detallada del estado actual..."
             onFocus={(e) => !readOnly && (e.target.style.borderColor = 'var(--primary)')}
-            onBlur={(e) => !readOnly && (e.target.style.borderColor = '#e2e8f0')}
+            onBlur={(e) => !readOnly && (e.target.style.borderColor = 'var(--border-color)')}
           />
         </div>
 

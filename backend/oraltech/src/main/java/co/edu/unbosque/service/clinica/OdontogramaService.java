@@ -76,6 +76,21 @@ public class OdontogramaService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public void delete(UUID historiaId, Long registroId) {
+        HistoriaClinica historia = historiaService.findOrThrow(historiaId);
+        guard.requireActiva(historia);
+
+        OdontogramaRegistro registro = repo.findById(registroId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro no encontrado"));
+
+        if (!registro.getHistoriaClinica().getId().equals(historiaId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El registro no pertenece a esta historia");
+        }
+
+        repo.delete(registro);
+    }
+
     private OdontogramaRegistroResponse toResponse(OdontogramaRegistro r) {
         return OdontogramaRegistroResponse.builder()
                 .id(r.getId())

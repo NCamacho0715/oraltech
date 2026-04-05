@@ -29,4 +29,12 @@ public class OdontogramaController {
     public ResponseEntity<List<OdontogramaRegistroResponse>> list(@PathVariable UUID historiaId) {
         return ResponseEntity.ok(service.list(historiaId));
     }
+
+    @DeleteMapping("/{registroId}")
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID historiaId,
+            @PathVariable Long registroId) {
+        service.delete(historiaId, registroId);
+        return ResponseEntity.noContent().build();
+    }
 }

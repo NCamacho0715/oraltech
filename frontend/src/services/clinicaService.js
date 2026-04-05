@@ -90,6 +90,30 @@ const clinicaService = {
   
   createOdontogramaRegistro: (historiaId, data) => 
     axios.post(`${API_URL}/historias/${historiaId}/odontograma`, data, { headers: getAuthHeader() }),
+
+  deleteOdontogramaRegistro: (historiaId, registroId) =>
+    axios.delete(`${API_URL}/historias/${historiaId}/odontograma/${registroId}`, { headers: getAuthHeader() }),
+
+  // Protesis
+  getProtesis: (historiaId) =>
+    axios.get(`${API_URL}/historias/${historiaId}/odontograma/protesis`, { headers: getAuthHeader() }),
+
+  upsertProtesis: (historiaId, data) =>
+    axios.put(`${API_URL}/historias/${historiaId}/odontograma/protesis`, data, { headers: getAuthHeader() }),
+
+  // Análisis Pulpar
+  getAnalisisPulpar: (historiaId) =>
+    axios.get(`${API_URL}/historias/${historiaId}/analisis-pulpar`, { headers: getAuthHeader() }),
+  
+  upsertAnalisisPulpar: (historiaId, data) =>
+    axios.put(`${API_URL}/historias/${historiaId}/analisis-pulpar`, data, { headers: getAuthHeader() }),
+
+  // Análisis Periodontal
+  getAnalisisPeriodontal: (historiaId) =>
+    axios.get(`${API_URL}/historias/${historiaId}/analisis-periodontal`, { headers: getAuthHeader() }),
+  
+  upsertAnalisisPeriodontal: (historiaId, data) =>
+    axios.put(`${API_URL}/historias/${historiaId}/analisis-periodontal`, data, { headers: getAuthHeader() }),
 };
 
 export default clinicaService;
