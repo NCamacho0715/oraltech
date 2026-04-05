@@ -1,27 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getPatientById } from '../services/patientService';
-import { ArrowLeft, User, MapPin, Briefcase, Heart, Users as GuardianIcon, Phone, Mail, Calendar, Edit2 } from 'lucide-react';
+import clinicaService from '../services/clinicaService';
+import { ArrowLeft, User, MapPin, Briefcase, Heart, Users as GuardianIcon, Phone, Mail, Calendar, Edit2, ClipboardList } from 'lucide-react';
 
 const PatientDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [patient, setPatient] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [hasHistoria, setHasHistoria] = useState(null);
+    const [creatingHistory, setCreatingHistory] = useState(false);
+    
 
     useEffect(() => {
-        loadPatient();
+        loadPatientData();
     }, [id]);
 
-    const loadPatient = async () => {
+    const loadPatientData = async () => {
         try {
-            const data = await getPatientById(id);
-            setPatient(data);
+            setLoading(true);
+            const patientData = await getPatientById(id);
+            setPatient(patientData);
+            
+            try {
+                await clinicaService.getHistoriaByPacienteId(id);
+                setHasHistoria(true);
+            } catch (err) {
+                if (err.response?.status === 404) {
+                    setHasHistoria(false);
+                }
+            }
         } catch (error) {
-            console.error('Error loading patient:', error);
+            console.error('Error loading patient data:', error);
             alert('Error al cargar datos del paciente');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleCreateHistoria = async () => {
+        try {
+            setCreatingHistory(true);
+            await clinicaService.createHistoria(id);
+            navigate(`/patients/${id}/clinica`);
+        } catch (error) {
+            alert('Error al crear historia clínica');
+            setCreatingHistory(false);
         }
     };
 
@@ -52,19 +77,57 @@ const PatientDetail = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <button 
                     onClick={() => navigate('/patients')}
-                    style={{ background: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}
+                    style={{ background: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontWeight: 500, border: 'none', cursor: 'pointer' }}
                 >
                     <ArrowLeft size={18} />
                     Volver al listado
                 </button>
-                <button 
-                    onClick={() => navigate(`/patients/edit/${id}`)}
-                    className="btn-primary"
-                    style={{ width: 'auto', padding: '0.6rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                >
-                    <Edit2 size={18} />
-                    Editar Información
-                </button>
+                <div style={{ display: 'flex', gap: '0.8rem' }}>
+                    {hasHistoria === false && (
+                        <button 
+                            onClick={handleCreateHistoria}
+                            disabled={creatingHistory}
+                            className="btn-primary"
+                            style={{ 
+                                width: 'auto', 
+                                padding: '0.6rem 1.2rem', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.5rem',
+                                background: '#10b981', // emerald for create
+                                opacity: creatingHistory ? 0.7 : 1
+                            }}
+                        >
+                            <ClipboardList size={18} />
+                            {creatingHistory ? 'Creando...' : 'Crear Historia Clínica'}
+                        </button>
+                    )}
+                    {hasHistoria === true && (
+                        <button 
+                            onClick={() => navigate(`/patients/${id}/clinica`)}
+                            className="btn-primary"
+                            style={{ 
+                                width: 'auto', 
+                                padding: '0.6rem 1.2rem', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.5rem',
+                                background: '#4f46e5' // Indigo for clinical
+                            }}
+                        >
+                            <ClipboardList size={18} />
+                            Ver Historia Clínica
+                        </button>
+                    )}
+                    <button 
+                        onClick={() => navigate(`/patients/edit/${id}`)}
+                        className="btn-primary"
+                        style={{ width: 'auto', padding: '0.6rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                        <Edit2 size={18} />
+                        Editar Información
+                    </button>
+                </div>
             </div>
 
             <header style={{ marginBottom: '2.5rem', textAlign: 'center' }}>

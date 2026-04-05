@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+@import "tailwindcss";
 :root {
   --primary: #0077b6;
   --primary-light: #00b4d8;
@@ -15,6 +16,23 @@
   --shadow: 0 10px 30px rgba(0, 119, 182, 0.08);
   --glass: rgba(255, 255, 255, 0.85);
   --font-family: 'Inter', sans-serif;
+  --border-color: rgba(144, 224, 239, 0.3);
+}
+
+[data-theme='dark'] {
+  --primary: #4cc9f0;
+  --primary-light: #4895ef;
+  --secondary: #3f37c9;
+  --secondary-soft: rgba(76, 201, 240, 0.1);
+  --background: #0f172a; /* Slate 900 - much cleaner */
+  --surface: #1e293b;    /* Slate 800 - contrast */
+  --text-main: #f1f5f9;  /* Slate 100 */
+  --text-secondary: #94a3b8; /* Slate 400 - subtle */
+  --accent: #f72585;
+  --success: #4ade80;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --glass: rgba(30, 41, 59, 0.8);
+  --border-color: rgba(148, 163, 184, 0.15);
 }
 
 * {
@@ -29,6 +47,7 @@ body {
   color: var(--text-main);
   line-height: 1.6;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 a {
@@ -65,8 +84,7 @@ button {
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
   width: 100%;
-  max-width: 450px;
-  border: 1px solid rgba(144, 224, 239, 0.3);
+  border: 1px solid var(--border-color);
   backdrop-filter: blur(10px);
 }
 
@@ -99,26 +117,26 @@ button {
   color: var(--text-main);
 }
 
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.input-wrapper input, .input-wrapper select {
+.form-group input, .form-group select, .form-group textarea {
   width: 100%;
   padding: 0.8rem 1rem;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 1rem;
-  background-color: #fafafa;
+  background-color: var(--surface);
+  color: var(--text-main);
   transition: all 0.3s ease;
+  outline: none;
 }
 
-.input-wrapper input:focus, .input-wrapper select:focus {
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
   border-color: var(--primary);
-  background-color: #fff;
-  box-shadow: 0 0 0 4px rgba(0, 119, 182, 0.1);
+  box-shadow: 0 0 0 4px rgba(var(--primary-rgb, 0, 119, 182), 0.1);
+}
+
+.form-group input::placeholder, .form-group textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
 }
 
 .btn-primary {
@@ -171,4 +189,10 @@ button {
 
 .auth-card {
   animation: fadeIn 0.6s ease-out;
+}
+
+/* Specific constraint for login/register pages only */
+.login-page-card, .register-page-card {
+  max-width: 450px !important;
+  margin: 0 auto;
 }

@@ -1,0 +1,107 @@
+import React, { useState, useEffect } from 'react';
+import clinicaService from '../../services/clinicaService';
+import { Save, CheckCircle2 } from 'lucide-react';
+
+const AnalisisPulparForm = ({ historiaId, readOnly }) => {
+  const [data, setData] = useState({
+    cuellosSensibles: false,
+    endoRealizada: false,
+    endoDefectuosa: false,
+    abcesoFistula: false,
+    lesionesPeriapicales: false,
+    qxEndodontica: false,
+    exposicionPulpar: false,
+    cambioColor: false,
+    observaciones: ''
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const res = await clinicaService.getAnalisisPulpar(historiaId);
+        if (res.data) setData(res.data);
+      } catch (e) {
+        console.error('Error loading pulpar analysis:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [historiaId]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await clinicaService.upsertAnalisisPulpar(historiaId, data);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (e) {
+      console.error('Error saving pulpar analysis:', e);
+      alert('Error al guardar análisis pulpar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="text-center p-5">Cargando Análisis Pulpar...</div>;
+
+  const CheckboxRow = ({ id, label }) => (
+    <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.6rem', borderRadius: '8px', cursor: readOnly ? 'default' : 'pointer', background: 'var(--surface)', border: '1px solid var(--border-color)', transition: 'all 0.2s' }}>
+      <input 
+        type="checkbox" 
+        checked={data[id] || false} 
+        onChange={e => !readOnly && setData({ ...data, [id]: e.target.checked })} 
+        disabled={readOnly}
+        style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+      />
+      <span style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>{label}</span>
+    </label>
+  );
+
+  return (
+    <div style={{ background: 'var(--surface)', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '2px solid var(--border-color)', paddingBottom: '1rem' }}>
+        <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--primary)', margin: 0 }}>Análisis Pulpar - Endodóntico</h3>
+        {!readOnly && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {showSuccess && (
+              <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, animation: 'fadeIn 0.3s' }}>
+                <CheckCircle2 size={18} /> Guardado
+              </span>
+            )}
+            <button onClick={handleSave} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+              <Save size={18} /> {saving ? 'Guardando...' : 'Guardar Análisis'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+        <CheckboxRow id="cuellosSensibles" label="Cuellos sensibles" />
+        <CheckboxRow id="endoRealizada" label="Endodoncia realizada" />
+        <CheckboxRow id="endoDefectuosa" label="Endodoncia defectuosa" />
+        <CheckboxRow id="abcesoFistula" label="Abceso - Fistula" />
+        <CheckboxRow id="lesionesPeriapicales" label="Lesiones periapicales" />
+        <CheckboxRow id="qxEndodontica" label="Qx endodóntica" />
+        <CheckboxRow id="exposicionPulpar" label="Exposición pulpar" />
+        <CheckboxRow id="cambioColor" label="Cambio color" />
+      </div>
+
+      <div>
+        <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Observaciones:</label>
+        <textarea 
+          value={data.observaciones || ''} 
+          onChange={e => !readOnly && setData({ ...data, observaciones: e.target.value })}
+          disabled={readOnly}
+          placeholder="Escriba aquí cualquier observación adicional..."
+          style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', color: 'var(--text-main)', minHeight: '100px', resize: 'vertical', fontSize: '1rem' }}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default AnalisisPulparForm;

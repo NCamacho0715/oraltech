@@ -1,0 +1,103 @@
+import React, { useState, useEffect } from 'react';
+import clinicaService from '../../services/clinicaService';
+import { Save, CheckCircle2 } from 'lucide-react';
+
+const AnalisisPeriodontalForm = ({ historiaId, readOnly }) => {
+  const [data, setData] = useState({
+    bolsaPeriodontal: false,
+    pseudoBolsa: false,
+    movilidadDental: false,
+    perdidaOsea: false,
+    retraccionGingival: false,
+    calculosSupra: false,
+    calculosSub: false,
+    reabsorcionRadicular: false,
+    sangrado: false,
+    exudadoSupuracion: false,
+    inflamacion: false,
+    cambioColor: false
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const res = await clinicaService.getAnalisisPeriodontal(historiaId);
+        if (res.data) setData(res.data);
+      } catch (e) {
+        console.error('Error loading periodontal analysis:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [historiaId]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await clinicaService.upsertAnalisisPeriodontal(historiaId, data);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (e) {
+      console.error('Error saving periodontal analysis:', e);
+      alert('Error al guardar análisis periodontal');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="text-center p-5">Cargando Análisis Periodontal...</div>;
+
+  const CheckboxRow = ({ id, label }) => (
+    <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem', borderRadius: '10px', cursor: readOnly ? 'default' : 'pointer', background: 'var(--surface)', border: '1px solid var(--border-color)', transition: 'all 0.2s', boxShadow: 'var(--shadow-sm)' }}>
+      <input 
+        type="checkbox" 
+        checked={data[id] || false} 
+        onChange={e => !readOnly && setData({ ...data, [id]: e.target.checked })} 
+        disabled={readOnly}
+        style={{ width: '20px', height: '20px', accentColor: 'var(--accent)' }}
+      />
+      <span style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: 500 }}>{label}</span>
+    </label>
+  );
+
+  return (
+    <div style={{ background: 'var(--surface)', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '2px solid var(--border-color)', paddingBottom: '1rem' }}>
+        <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--accent)', margin: 0 }}>Análisis Periodontal</h3>
+        {!readOnly && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {showSuccess && (
+              <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, animation: 'fadeIn 0.3s' }}>
+                <CheckCircle2 size={18} /> Guardado
+              </span>
+            )}
+            <button onClick={handleSave} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+              <Save size={18} /> {saving ? 'Guardando...' : 'Guardar Análisis'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+        <CheckboxRow id="bolsaPeriodontal" label="Bolsa periodontal" />
+        <CheckboxRow id="pseudoBolsa" label="Pseudo bolsa" />
+        <CheckboxRow id="movilidadDental" label="Movilidad dental" />
+        <CheckboxRow id="perdidaOsea" label="Pérdida osea" />
+        <CheckboxRow id="retraccionGingival" label="Retracción gingival" />
+        <CheckboxRow id="calculosSupra" label="Cálculos supragingivales" />
+        <CheckboxRow id="calculosSub" label="Cálculos subgingivales" />
+        <CheckboxRow id="reabsorcionRadicular" label="Reabsorción radicular" />
+        <CheckboxRow id="sangrado" label="Sangrado" />
+        <CheckboxRow id="exudadoSupuracion" label="Exudado/supuración" />
+        <CheckboxRow id="inflamacion" label="Inflamación" />
+        <CheckboxRow id="cambioColor" label="Cambio color" />
+      </div>
+    </div>
+  );
+};
+
+export default AnalisisPeriodontalForm;

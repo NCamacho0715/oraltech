@@ -5,6 +5,7 @@ import Dashboard from './views/Dashboard';
 import PatientList from './views/PatientList';
 import PatientForm from './views/PatientForm';
 import PatientDetail from './views/PatientDetail';
+import ClinicalHistory from './views/ClinicalHistory';
 import './index.css';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
         <Route path="/patients" element={<PatientList />} />
         <Route path="/patients/new" element={<PatientForm />} />
         <Route path="/patients/:id" element={<PatientDetail />} />
+        <Route path="/patients/:id/clinica" element={<ClinicalHistory />} />
         <Route path="/patients/edit/:id" element={<PatientForm />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
