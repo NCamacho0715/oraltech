@@ -137,7 +137,7 @@ const Dashboard = () => {
                 }}>
                     {[
                         { title: 'Gestión de Pacientes', desc: 'Registrar nuevos pacientes, ver fichas técnicas y acceder a sus historias clínicas.', icon: <Users size={32} />, color: '#0077b6', path: '/patients' },
-                        { title: 'Agenda de Citas', desc: 'Organizar la disponibilidad del consultorio y programar citas con pacientes.', icon: <Calendar size={32} />, color: '#0077b6', path: '/dashboard' },
+                        { title: 'Agenda de Citas', desc: 'Organizar la disponibilidad del consultorio y programar citas con pacientes.', icon: <Calendar size={32} />, color: '#0077b6', path: '/appointments' },
                     ].map((item, index) => (
                         <div key={index} className="auth-card" 
                         onClick={() => navigate(item.path)}
