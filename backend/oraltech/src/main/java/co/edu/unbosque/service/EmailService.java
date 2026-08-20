@@ -42,7 +42,7 @@ public class EmailService {
             helper.setText(buildConfirmationHtml(appt), true);
             mailSender.send(msg);
             log.info("Correo de confirmación enviado a {}", to);
-        } catch (MessagingException e) {
+        } catch (Exception e) {
             log.error("Error enviando confirmación a {}: {}", to, e.getMessage());
         }
     }
@@ -64,7 +64,7 @@ public class EmailService {
             helper.setText(buildReminderHtml(appt), true);
             mailSender.send(msg);
             log.info("Recordatorio enviado a {}", to);
-        } catch (MessagingException e) {
+        } catch (Exception e) {
             log.error("Error enviando recordatorio a {}: {}", to, e.getMessage());
         }
     }

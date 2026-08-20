@@ -1,740 +1,343 @@
-# PLAN DE PRUEBAS COMPLETO Y EJECUTABLE - ORALTECH (VERSIÓN QA ADVANCED)
+# PLAN DE PRUEBAS UNITARIAS DEL BACKEND - ORALTECH
 
-Este documento define la estrategia, el diseño de pruebas, los ejemplos reales de código y la matriz de trazabilidad del sistema clínico **OralTech**. Está diseñado bajo estándares de ingeniería de software para entornos locales (LAN) y una arquitectura en capas (Spring Boot 3 + PostgreSQL + React 19).
+## 1. INTRODUCCIÓN Y OBJETIVOS
+
+### 1.1 Propósito
+Este documento establece el plan integral de **pruebas unitarias para el backend** del sistema **OralTech** (Spring Boot 3 + Java 17). Su propósito es definir la estrategia, el alcance exhaustivo clase por clase, la matriz de casos de prueba y los criterios de aceptación necesarios para garantizar una **cobertura de código superior al 70%** (medida mediante **JaCoCo**), asegurando la confiabilidad, integridad y mantenibilidad de la lógica del negocio.
+
+### 1.2 Objetivos de Calidad
+- **Meta de Cobertura Global JaCoCo**: $\ge$ 70% de cobertura en instrucciones y líneas en el backend.
+- **Cobertura en Capa Service (Lógica de Negocio)**: $\ge$ 85% de líneas y ramas de decisión.
+- **Cobertura en Capa Controller (Web Unit)**: $\ge$ 75% de líneas.
+- **Cobertura en Seguridad y Manejo de Errores**: $\ge$ 80% de líneas.
+- **Aislamiento Total**: El 100% de las pruebas unitarias deben ejecutarse de forma determinista y en milisegundos, utilizando dobles de prueba (**Mocks** con Mockito) sin levantar bases de datos externas ni contextos pesados de Spring.
 
 ---
 
-## 1. ESTRATEGIA DE PRUEBAS Y ALCANCE
+## 2. ESTRATEGIA Y ARQUITECTURA DE PRUEBAS UNITARIAS
 
-La estrategia de aseguramiento de calidad de OralTech adopta la **Pirámide de Pruebas**, balanceando la velocidad y el costo de las pruebas unitarias con la fidelidad e integración de las pruebas de integración y E2E.
+### 2.1 Principios de Diseño
+1. **Patrón AAA (Arrange - Act - Assert / Given - When - Then)**: Cada caso de prueba debe estructurar claramente la preparación del escenario, la invocación del método bajo prueba y las aserciones de salida y efectos secundarios.
+2. **Aislamiento de Dependencias**: Repositorios (`*Repository`), servicios externos (`EmailService`), componentes de seguridad (`JwtService`, `AuthenticationManager`, `PasswordEncoder`) deben ser simulados mediante `@Mock`, inyectándose en el componente bajo prueba con `@InjectMocks`.
+3. **Pruebas de Controladores**: Enfoque de pruebas unitarias puras o mediante `MockMvcBuilders.standaloneSetup()` para verificar códigos de estado HTTP, mapeo de endpoints y serialización sin requerir el servidor embebido ni la base de datos física.
+4. **Verificación Estricta de Interacciones**: Comprobar no solo los valores de retorno, sino también que los métodos clave de persistencia o notificación sean llamados el número exacto de veces (`times(1)`) o nunca (`never()`) en rutas de excepción.
 
-```mermaid
-graph TD
-    A[Pruebas E2E - Cypress: 10%] --> B[Pruebas de Integración / API - Spring Boot Test / Insomnia: 30%]
-    B --> C[Pruebas Unitarias - JUnit 5 + Mockito: 60%]
-```
+### 2.2 Estrategia para Superar el 70% de Cobertura en JaCoCo
+Para superar con certeza el 70% de cobertura global, el plan abarca todas las clases con lógica ejecutable del backend:
+- **6 Servicios del Core**: `PatientService`, `AppointmentService`, `AuthService`, `DashboardService`, `EmailService`, `AppointmentReminderScheduler`.
+- **15 Servicios del Módulo Clínico**: `HistoriaClinicaGuard`, `HistoriaClinicaService`, `AntecedentesService`, `AnalisisPeriodontalService`, `AnalisisPulparService`, `AnamnesisService`, `ConsentimientoService`, `DiagnosticoService`, `EvolucionClinicaService`, `ExamenClinicoService`, `InterconsultaService`, `OdontogramaProtesisService`, `OdontogramaService`, `PlanTratamientoService`, `PronosticoService`.
+- **Componentes de Seguridad y Excepciones**: `JwtService`, `JwtAuthenticationFilter`, `GlobalExceptionHandler`.
+- **Controladores REST**: `PatientController`, `AppointmentController`, `AuthController`, `DashboardController`, `HistoriaClinicaController` y los controladores de submódulos clínicos.
 
-### 1.1 Alcance por Módulo
+---
 
-1. **Gestión de Pacientes**:
-   - Validación de unicidad de documento de identidad (`idNumber`).
-   - Cálculo automático y correcto de edad a partir de la fecha de nacimiento (`birthDate`) con la API Java `java.time.Period`.
-   - Operaciones de CRUD completas sobre datos personales (registro, lectura, actualización y eliminación).
-2. **Historias Clínicas**:
-   - Registro único de Historia Clínica por paciente (restricción física `@OneToOne` en base de datos).
-   - Gestión de evolución clínica, análisis pulpar-endodóntico y periodontal.
-   - Seguridad y control de acceso (solo odontólogos autorizados con rol `DENTIST` pueden registrar datos clínicos).
-3. **Agendamiento de Citas**:
-   - Validación de solapamiento de horarios (dos citas no pueden cursarse en el mismo bloque para el mismo odontólogo).
-   - Cambio de estado de la cita (`PENDIENTE`, `ATENDIDA`, `CANCELADA`).
-   - Integración asíncrona de notificaciones por email al crear/confirmar cita.
-4. **Autenticación y Control de Acceso**:
-   - Registro y login seguro con codificación de contraseñas vía `BCrypt`.
-   - Generación, validación y expiración de tokens JWT.
-   - Control de acceso por roles (`ADMIN`, `DENTIST`) a nivel de capa web (`SecurityFilterChain`).
+## 3. CATÁLOGO DETALLADO DE CASOS DE PRUEBA UNITARIOS
 
-### 1.2 Entorno de Pruebas (Test Environment)
+### 3.1 Servicios del Core del Negocio
 
-- **Local Host**: Red LAN privada. El backend se ejecuta sobre Java 17 en el puerto `8080` (Spring Boot), y el frontend React en el puerto `5173` (Vite).
-- **Base de Datos de Integración**:
-  - **Justificación del motor de pruebas**: Se utiliza una base de datos PostgreSQL física dedicada para pruebas (`oraltech_test` en el puerto `5432`) o, alternativamente, contenedores Docker administrados vía **Testcontainers (PostgreSQL)** en servidores de CI/CD. 
-  - **Evitación de H2**: Se descarta el uso de bases de datos H2 en modo de compatibilidad debido a discrepancias en el comportamiento transaccional y la incompatibilidad con funciones específicas de PostgreSQL (como tipos de datos `UUID`, operaciones de fecha específicas y extensiones de base de datos).
-  - **Migración de Esquemas**: Se utiliza **Flyway** bajo el perfil de ejecución `test` (`spring.profiles.active=test`) para garantizar que la base de datos de pruebas mantenga exactamente el mismo esquema físico y las mismas restricciones que el de producción.
-- **Navegador**: Ejecución de pruebas E2E en motores Chromium (Chrome/Electron) y Firefox controlados por Cypress en modo headless (para CI) y GUI (para depuración local).
+#### 3.1.1 `PatientService`
+- **Componente**: `co.edu.unbosque.service.PatientService`
+- **Dependencias a simular**: `PatientRepository`
 
-### 1.3 Declaración de Dataset de Pruebas (Cumplimiento de Privacidad)
-
-De acuerdo con las regulaciones de protección de datos personales y sensibles (como la ley de Habeas Data y directrices de protección de datos médicos), **todos los datos utilizados en las pruebas son 100% ficticios y sintetizados de forma automatizada**. Queda terminantemente prohibido el uso de información de pacientes reales del consultorio en cualquier ambiente de pruebas.
-
-#### Muestreo del Dataset
-
-| Categoría | Tipo de Dato | Variable / Campo | Ejemplo de Entrada | Resultado Esperado |
+| ID Caso | Método Bajo Prueba | Escenario / Condición | Datos de Entrada Simulados | Resultado Esperado y Verificaciones |
 | :--- | :--- | :--- | :--- | :--- |
-| **Válido** | Cédula Colombiana (CC) estándar | `idNumber` | `"1018456789"` | Registro exitoso y persistido. |
-| **Válido** | Correo electrónico válido | `email` | `"dra.andrea@oraltech.com"` | Aceptación y almacenamiento. |
-| **Inválido** | Documento duplicado en BD | `idNumber` | `"1018456789"` (ya existente) | Excepción de conflicto (409 Conflict). |
-| **Inválido** | Formato de fecha de nacimiento futuro | `birthDate` | `LocalDate.now().plusDays(1)` | Falla en validación de negocio (Bad Request). |
-| **Edge Case** | Solapamiento límite de 1 minuto en citas | Cita A vs B | A: `14:00 - 14:30`, B: `14:29 - 15:00` | Cita B rechazada por conflicto de agenda. |
-| **Edge Case** | Horario de cita invertido | `startTime` / `endTime` | `startTime = 15:00`, `endTime = 14:00` | Cita rechazada (Fecha de fin debe ser posterior a la de inicio). |
-| **Edge Case** | Contraseña de longitud mínima | `password` | `"123456"` | Validado por reglas de seguridad y cifrado. |
-
-### 1.4 Criterios de Aceptación y Éxito
-- **Cobertura**: Cobertura de código de negocio (Services y Controllers) del **85% mínimo** (medido mediante plugin JaCoCo).
-- **Estabilidad**: El **100%** de los casos críticos del core (citas sin solapamientos, acceso seguro a historias clínicas) deben ejecutarse sin errores.
-- **Tasa de Éxito**: **>= 98%** de las pruebas unitarias e integración en verde en el servidor de integración.
-
----
-
-## 2. PRUEBAS UNITARIAS (JUnit 5 + Mockito)
-
-Las pruebas unitarias aíslan la lógica del negocio mockeando las dependencias externas (`Repositories`, `External Services`).
-
-### 2.1 Clases Críticas bajo Prueba
-- `co.edu.unbosque.service.PatientService` (Lógica de validación y persistencia de pacientes)
-- `co.edu.unbosque.service.AppointmentService` (Lógica de cruces de agenda y notificaciones)
-- `co.edu.unbosque.service.AuthService` (Lógica de autenticación, hash de contraseñas y tokenización)
-
-### 2.2 Especificación de Casos de Prueba Unitarios (Incluyendo Casos Límite y Edge Cases)
-
-#### Módulo: Gestión de Pacientes (`PatientService`)
-- **Caso UT-PAT-01**: Crear paciente con documento nuevo (Camino feliz).
-  - *Objetivo*: Verificar flujo exitoso y llamada correcta a la persistencia.
-  - *Datos de entrada*: `Patient` completo (idNumber: `"10223344"`, names: `"Carlos"`, birthDate: `2000-01-01`).
-  - *Resultado esperado*: Objeto `Patient` retornado con ID asignado y sin excepciones.
-- **Caso UT-PAT-02**: Crear paciente con documento ya existente.
-  - *Objetivo*: Prevenir duplicados de cédula a nivel de servicio.
-  - *Datos de entrada*: `Patient` con idNumber: `"10223344"`.
-  - *Resultado esperado*: Lanzamiento de `RuntimeException` con mensaje: `"Patient with this ID number already exists"`.
-- **Caso UT-PAT-03**: Crear paciente con campos obligatorios vacíos o nulos.
-  - *Objetivo*: Validar consistencia antes del envío al repositorio.
-  - *Datos de entrada*: `Patient` con `names = null` o `firstSurname = ""`.
-  - *Resultado esperado*: Lanzamiento de `IllegalArgumentException` o fallo de validación controlada.
-
-#### Módulo: Agendamiento de Citas (`AppointmentService`)
-- **Caso UT-APP-01**: Crear cita sin conflicto de horario (Camino feliz).
-  - *Objetivo*: Agendar cita médica exitosamente si la hora y fecha están libres.
-  - *Datos de entrada*: `AppointmentDTO.Request` (patientId: `1L`, date: `2026-06-01`, start: `10:00`, end: `10:30`).
-  - *Resultado esperado*: Cita registrada, llamada a `EmailService` realizada y DTO de respuesta correcto.
-- **Caso UT-APP-02**: Crear cita con horario en conflicto.
-  - *Objetivo*: Bloquear la creación de la cita si se cruza con otra previamente agendada.
-  - *Datos de entrada*: `AppointmentDTO.Request` (patientId: `2L`, date: `2026-06-01`, start: `10:15`, end: `10:45`).
-  - *Resultado esperado*: Lanzamiento de `IllegalStateException` con mensaje: `"Ya existe una cita en ese horario."`.
-- **Caso UT-APP-03 (Edge Case)**: Intentar crear cita con hora de fin menor o igual a hora de inicio (`endTime <= startTime`).
-  - *Objetivo*: Prevenir incongruencias temporales en el sistema de agenda.
-  - *Datos de entrada*: `AppointmentDTO.Request` (startTime: `15:00`, endTime: `14:00`).
-  - *Resultado esperado*: Lanzamiento de `IllegalArgumentException` con mensaje: `"La hora de finalización debe ser posterior a la de inicio"`.
-- **Caso UT-APP-04 (Edge Case)**: Intentar crear cita para un paciente inexistente.
-  - *Objetivo*: Validar la integridad referencial a nivel de negocio.
-  - *Datos de entrada*: `AppointmentDTO.Request` (patientId: `9999L` - inexistente).
-  - *Resultado esperado*: Lanzamiento de `IllegalArgumentException` con mensaje: `"Paciente no encontrado: 9999"`.
-
-### 2.3 Implementación de Código de Pruebas Unitarias
-
-A continuación se muestra el código real y ejecutable que incorpora estas validaciones límite y de frontera.
-
-#### [PatientServiceTest.java](file:///c:/Users/ncama/git/oraltech/backend/oraltech/src/test/java/co/edu/unbosque/service/PatientServiceTest.java)
-```java
-package co.edu.unbosque.service;
-
-import co.edu.unbosque.entity.Patient;
-import co.edu.unbosque.repository.PatientRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.LocalDate;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
-@ExtendWith(MockitoExtension.class)
-class PatientServiceTest {
-
-    @Mock
-    private PatientRepository patientRepository;
-
-    @InjectMocks
-    private PatientService patientService;
-
-    private Patient testPatient;
-
-    @BeforeEach
-    void setUp() {
-        testPatient = Patient.builder()
-                .id(1L)
-                .names("Carlos")
-                .firstSurname("Rodríguez")
-                .secondSurname("Pérez")
-                .idType("CC")
-                .idNumber("10203040")
-                .email("carlos@gmail.com")
-                .birthDate(LocalDate.of(1995, 8, 15))
-                .build();
-    }
-
-    @Test
-    @DisplayName("Debería registrar un paciente exitosamente si el documento es nuevo")
-    void shouldCreatePatientSuccessfully() {
-        when(patientRepository.existsByIdNumber("10203040")).thenReturn(false);
-        when(patientRepository.save(any(Patient.class))).thenReturn(testPatient);
-
-        Patient created = patientService.createPatient(testPatient);
-
-        assertNotNull(created);
-        assertEquals("10203040", created.getIdNumber());
-        assertEquals("Carlos", created.getNames());
-        verify(patientRepository, times(1)).existsByIdNumber("10203040");
-        verify(patientRepository, times(1)).save(testPatient);
-    }
-
-    @Test
-    @DisplayName("Debería lanzar excepción si el documento ya se encuentra registrado")
-    void shouldThrowExceptionWhenPatientIdNumberAlreadyExists() {
-        when(patientRepository.existsByIdNumber("10203040")).thenReturn(true);
-
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            patientService.createPatient(testPatient);
-        });
-
-        assertEquals("Patient with this ID number already exists", exception.getMessage());
-        verify(patientRepository, times(1)).existsByIdNumber("10203040");
-        verify(patientRepository, never()).save(any(Patient.class));
-    }
-}
-```
-
-#### [AppointmentServiceTest.java](file:///c:/Users/ncama/git/oraltech/backend/oraltech/src/test/java/co/edu/unbosque/service/AppointmentServiceTest.java)
-```java
-package co.edu.unbosque.service;
-
-import co.edu.unbosque.dto.AppointmentDTO;
-import co.edu.unbosque.entity.Appointment;
-import co.edu.unbosque.entity.Patient;
-import co.edu.unbosque.repository.AppointmentRepository;
-import co.edu.unbosque.repository.PatientRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
-@ExtendWith(MockitoExtension.class)
-class AppointmentServiceTest {
-
-    @Mock
-    private AppointmentRepository appointmentRepository;
-
-    @Mock
-    private PatientRepository patientRepository;
-
-    @Mock
-    private EmailService emailService;
-
-    @InjectMocks
-    private AppointmentService appointmentService;
-
-    private Patient mockPatient;
-    private AppointmentDTO.Request testRequest;
-    private Appointment savedAppointment;
-
-    @BeforeEach
-    void setUp() {
-        mockPatient = Patient.builder()
-                .id(10L)
-                .names("Sofía")
-                .firstSurname("Gómez")
-                .build();
-
-        testRequest = AppointmentDTO.Request.builder()
-                .patientId(10L)
-                .title("Consulta Odontológica General")
-                .appointmentDate(LocalDate.of(2026, 6, 10))
-                .startTime(LocalTime.of(14, 0))
-                .endTime(LocalTime.of(14, 30))
-                .notes("Revisión semestral")
-                .status("PENDIENTE")
-                .build();
-
-        savedAppointment = Appointment.builder()
-                .id(100L)
-                .patient(mockPatient)
-                .title("Consulta Odontológica General")
-                .appointmentDate(LocalDate.of(2026, 6, 10))
-                .startTime(LocalTime.of(14, 0))
-                .endTime(LocalTime.of(14, 30))
-                .notes("Revisión semestral")
-                .status("PENDIENTE")
-                .build();
-    }
-
-    @Test
-    @DisplayName("Debería registrar una cita médica exitosamente si no hay solapamientos")
-    void shouldCreateAppointmentSuccessfully() {
-        when(patientRepository.findById(10L)).thenReturn(Optional.of(mockPatient));
-        when(appointmentRepository.findConflicting(
-                any(LocalDate.class), any(LocalTime.class), any(LocalTime.class), eq(-1L)
-        )).thenReturn(Collections.emptyList());
-        when(appointmentRepository.save(any(Appointment.class))).thenReturn(savedAppointment);
-
-        AppointmentDTO.Response response = appointmentService.createAppointment(testRequest);
-
-        assertNotNull(response);
-        assertEquals(100L, response.getId());
-        assertEquals("Sofía Gómez", response.getPatientName());
-        verify(emailService, times(1)).sendConfirmationEmail(any(Appointment.class));
-        verify(appointmentRepository, times(1)).save(any(Appointment.class));
-    }
-
-    @Test
-    @DisplayName("Debería lanzar excepción si se detecta un conflicto de horario")
-    void shouldThrowExceptionWhenAppointmentTimeOverlaps() {
-        Appointment conflictingAppointment = Appointment.builder()
-                .id(99L)
-                .title("Cita en Conflicto")
-                .build();
-
-        when(patientRepository.findById(10L)).thenReturn(Optional.of(mockPatient));
-        when(appointmentRepository.findConflicting(
-                any(LocalDate.class), any(LocalTime.class), any(LocalTime.class), eq(-1L)
-        )).thenReturn(List.of(conflictingAppointment));
-
-        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> {
-            appointmentService.createAppointment(testRequest);
-        });
-
-        assertEquals("Ya existe una cita en ese horario.", ex.getMessage());
-        verify(appointmentRepository, never()).save(any(Appointment.class));
-    }
-
-    @Test
-    @DisplayName("Edge Case: Debería lanzar excepción si la hora de fin es menor a la de inicio")
-    void shouldThrowExceptionWhenEndTimeIsBeforeStartTime() {
-        testRequest.setStartTime(LocalTime.of(16, 0));
-        testRequest.setEndTime(LocalTime.of(15, 0));
-
-        when(patientRepository.findById(10L)).thenReturn(Optional.of(mockPatient));
-
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
-            if (testRequest.getEndTime().isBefore(testRequest.getStartTime())) {
-                throw new IllegalArgumentException("La hora de finalización debe ser posterior a la de inicio");
-            }
-            appointmentService.createAppointment(testRequest);
-        });
-
-        assertEquals("La hora de finalización debe ser posterior a la de inicio", ex.getMessage());
-    }
-
-    @Test
-    @DisplayName("Edge Case: Debería lanzar excepción cuando el paciente no existe")
-    void shouldThrowExceptionWhenPatientDoesNotExist() {
-        testRequest.setPatientId(9999L);
-        when(patientRepository.findById(9999L)).thenReturn(Optional.empty());
-
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
-            appointmentService.createAppointment(testRequest);
-        });
-
-        assertEquals("Paciente no encontrado: 9999", ex.getMessage());
-    }
-}
-```
+| **UT-PAT-01** | `getAllPatients` | Consulta general de pacientes con registros existentes | Repositorio retorna lista de 2 pacientes | Retorna lista con 2 elementos; se verifica una invocación a `findAll()`. |
+| **UT-PAT-02** | `getAllPatients` | Consulta general cuando la base de datos está vacía | Repositorio retorna lista vacía | Retorna lista vacía sin errores. |
+| **UT-PAT-03** | `getPatientById` | Paciente encontrado por ID existente | ID = 1L; repositorio retorna `Optional.of(paciente)` | Retorna `Optional` con el paciente correspondiente. |
+| **UT-PAT-04** | `getPatientById` | Paciente no encontrado por ID inexistente | ID = 99L; repositorio retorna `Optional.empty()` | Retorna `Optional.empty()`. |
+| **UT-PAT-05** | `getPatientByIdNumber` | Paciente encontrado por número de documento | Documento = "10203040"; repositorio retorna `Optional.of(paciente)` | Retorna `Optional` con los datos del paciente. |
+| **UT-PAT-06** | `getPatientByIdNumber` | Paciente no encontrado por número de documento | Documento = "00000000"; repositorio retorna `Optional.empty()` | Retorna `Optional.empty()`. |
+| **UT-PAT-07** | `createPatient` | Registro exitoso de paciente con documento nuevo | Documento = "10203040"; `existsByIdNumber` retorna `false` | Retorna el paciente guardado; se verifica invocación a `save()`. |
+| **UT-PAT-08** | `createPatient` | Intento de registro con documento duplicado | Documento = "10203040"; `existsByIdNumber` retorna `true` | Lanza `RuntimeException` ("Patient with this ID number already exists"); `save()` nunca es invocado. |
+| **UT-PAT-09** | `updatePatient` | Actualización exitosa de todos los campos de un paciente existente | ID = 1L; `findById` retorna paciente existente; nuevos datos suministrados | Se actualizan todos los campos personales y de contacto; `save()` persiste los cambios y retorna la entidad actualizada. |
+| **UT-PAT-10** | `updatePatient` | Actualización sobre un paciente que no existe | ID = 99L; `findById` retorna `Optional.empty()` | Lanza `RuntimeException` ("Patient not found"); `save()` nunca es invocado. |
+| **UT-PAT-11** | `deletePatient` | Eliminación exitosa de paciente existente | ID = 1L; `findById` retorna paciente existente | Invoca `delete(paciente)` en el repositorio. |
+| **UT-PAT-12** | `deletePatient` | Eliminación de paciente inexistente | ID = 99L; `findById` retorna `Optional.empty()` | Lanza `RuntimeException` ("Patient not found"); `delete()` nunca es invocado. |
 
 ---
 
-## 3. PRUEBAS DE INTEGRACIÓN (Spring Boot Test)
+#### 3.1.2 `AppointmentService`
+- **Componente**: `co.edu.unbosque.service.AppointmentService`
+- **Dependencias a simular**: `AppointmentRepository`, `PatientRepository`, `EmailService`
 
-Las pruebas de integración validan la interacción entre los controladores, la seguridad de Spring Security, los servicios y la base de datos real PostgreSQL de pruebas (`oraltech_test`), asegurando consistencia e integridad referencial física.
-
-### 3.1 Flujos Completos por Módulo bajo Integración
-
-Para maximizar la cobertura y la solidez técnica, se diseñan pruebas completas que simulan el ciclo de vida de los datos:
-1. **Flujo de Paciente**: Registro completo -> Modificación de datos (teléfono y email) -> Eliminación lógica/física con validación de borrado.
-2. **Flujo de Historia Clínica**: Registro único -> validación de la restricción `@OneToOne` -> Intentar duplicar (esperando conflicto 409).
-3. **Flujo de Cita**: Agendamiento sin conflictos -> Modificación de estado a `CANCELADA` -> Validación de disponibilidad del bloque horario liberado.
-
-### 3.2 Implementación de Código de Pruebas de Integración (Incluyendo Seguridad y Validación de Respuesta JSON de Error)
-
-El siguiente código implementa el test de integración de Historias Clínicas y añade pruebas específicas para **validar la seguridad por roles** y la **estructura JSON exacta de las respuestas de error**.
-
-#### [HistoriaClinicaIntegrationTest.java](file:///c:/Users/ncama/git/oraltech/backend/oraltech/src/test/java/co/edu/unbosque/integration/HistoriaClinicaIntegrationTest.java)
-```java
-package co.edu.unbosque.integration;
-
-import co.edu.unbosque.dto.clinica.HistoriaClinicaRequest;
-import co.edu.unbosque.entity.Patient;
-import co.edu.unbosque.entity.User;
-import co.edu.unbosque.entity.User.Role;
-import co.edu.unbosque.entity.enums.EstadoHistoria;
-import co.edu.unbosque.repository.PatientRepository;
-import co.edu.unbosque.repository.UserRepository;
-import co.edu.unbosque.repository.clinica.HistoriaClinicaRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureMockMvc
-@ActiveProfiles("test") 
-@Transactional
-class HistoriaClinicaIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private PatientRepository patientRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private HistoriaClinicaRepository historiaClinicaRepository;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    private Patient savedPatient;
-    private User savedOdontologo;
-
-    @BeforeEach
-    void setUp() {
-        historiaClinicaRepository.deleteAll();
-        patientRepository.deleteAll();
-        userRepository.deleteAll();
-
-        Patient patient = Patient.builder()
-                .names("Juliana")
-                .firstSurname("Suárez")
-                .idType("CC")
-                .idNumber("1030999888")
-                .birthDate(LocalDate.of(1998, 4, 12))
-                .build();
-        savedPatient = patientRepository.save(patient);
-
-        User odontologo = User.builder()
-                .username("dra_juliana")
-                .password("$2a$10$xyz") 
-                .name("Dra. Juliana Suárez")
-                .email("juliana@oraltech.com")
-                .role(Role.DENTIST)
-                .build();
-        savedOdontologo = userRepository.save(odontologo);
-    }
-
-    @Test
-    @WithMockUser(roles = "DENTIST")
-    @DisplayName("Integración: Crear Historia Clínica exitosamente y persistir en base de datos")
-    void shouldCreateAndPersistHistoriaClinica() throws Exception {
-        HistoriaClinicaRequest request = new HistoriaClinicaRequest();
-        request.setPacienteId(savedPatient.getId());
-        request.setOdontologoId(savedOdontologo.getId());
-
-        mockMvc.perform(post("/api/clinica/historia")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.pacienteId", is(savedPatient.getId().intValue())))
-                .andExpect(jsonPath("$.odontologoId", is(savedOdontologo.getId().intValue())))
-                .andExpect(jsonPath("$.estado", is(EstadoHistoria.ACTIVA.name())));
-
-        assertTrue(historiaClinicaRepository.existsByPacienteId(savedPatient.getId()));
-    }
-
-    @Test
-    @WithMockUser(roles = "DENTIST")
-    @DisplayName("Integración: Debería lanzar conflicto si se intenta crear otra historia clínica para el mismo paciente")
-    void shouldReturnConflictWhenCreatingDuplicateHistoriaClinica() throws Exception {
-        HistoriaClinicaRequest request = new HistoriaClinicaRequest();
-        request.setPacienteId(savedPatient.getId());
-        request.setOdontologoId(savedOdontologo.getId());
-
-        mockMvc.perform(post("/api/clinica/historia")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(post("/api/clinica/historia")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.status", is(409)))
-                .andExpect(jsonPath("$.error", is("Conflict")))
-                .andExpect(jsonPath("$.message", is("Ya existe una historia clínica para este paciente")))
-                .andExpect(jsonPath("$.timestamp", notNullValue()));
-    }
-
-    @Test
-    @DisplayName("Seguridad: Debería denegar acceso (401) si no se proporciona Token JWT")
-    void shouldReturn401WhenNoTokenProvided() throws Exception {
-        HistoriaClinicaRequest request = new HistoriaClinicaRequest();
-        request.setPacienteId(savedPatient.getId());
-        request.setOdontologoId(savedOdontologo.getId());
-
-        mockMvc.perform(post("/api/clinica/historia")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized()); 
-    }
-
-    @Test
-    @WithMockUser(roles = "PATIENT") 
-    @DisplayName("Seguridad: Debería denegar acceso (403) si el rol no es DENTIST o ADMIN")
-    void shouldReturn403WhenRoleIsIncorrect() throws Exception {
-        HistoriaClinicaRequest request = new HistoriaClinicaRequest();
-        request.setPacienteId(savedPatient.getId());
-        request.setOdontologoId(savedOdontologo.getId());
-
-        mockMvc.perform(post("/api/clinica/historia")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden()); 
-    }
-}
-```
+| ID Caso | Método Bajo Prueba | Escenario / Condición | Datos de Entrada Simulados | Resultado Esperado y Verificaciones |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-APP-01** | `getAppointmentsByRange` | Consulta de citas en un rango de fechas con resultados | Fechas inicio y fin válidas; repositorio retorna lista de 2 citas | Retorna lista transformada a DTOs de respuesta; verifica mapeo correcto del nombre completo del paciente. |
+| **UT-APP-02** | `getAppointmentsByPatient` | Consulta del histórico de citas de un paciente | ID paciente = 10L; repositorio retorna lista de citas | Retorna lista de DTOs ordenados descendientemente. |
+| **UT-APP-03** | `createAppointment` | Creación exitosa de cita sin solapamiento horario | Paciente existe; repositorio de conflictos retorna lista vacía | Cita guardada con estado por defecto "PENDIENTE"; se envía correo vía `emailService.sendConfirmationEmail()`; retorna DTO de respuesta. |
+| **UT-APP-04** | `createAppointment` | Creación de cita con estado explícito personalizado | Estado = "CONFIRMADA"; sin conflictos | Cita guardada con estado "CONFIRMADA". |
+| **UT-APP-05** | `createAppointment` | Creación de cita para paciente inexistente | ID paciente = 999L; `patientRepository.findById` retorna vacío | Lanza `IllegalArgumentException` ("Paciente no encontrado"); no se valida conflicto ni se guarda ni se envía correo. |
+| **UT-APP-06** | `createAppointment` | Creación de cita con horario solapado con otra cita existente | Mismo día y rango de horas solapado; repositorio retorna conflicto | Lanza `IllegalStateException` ("Ya existe una cita en ese horario."); `save()` y `sendConfirmationEmail()` nunca son invocados. |
+| **UT-APP-07** | `updateAppointment` | Modificación exitosa de fecha, horario y notas de cita existente | ID cita = 5L; cita existe; paciente existe; sin conflictos con otras citas (excluyendo la misma cita) | Cita actualizada y guardada; retorna DTO con los nuevos datos. |
+| **UT-APP-08** | `updateAppointment` | Modificación de cita inexistente | ID cita = 999L; `appointmentRepository.findById` retorna vacío | Lanza `IllegalArgumentException` ("Cita no encontrada"). |
+| **UT-APP-09** | `updateAppointment` | Modificación de cita asignándole un paciente inexistente | Cita existe; nuevo ID paciente inexistente | Lanza `IllegalArgumentException` ("Paciente no encontrado"). |
+| **UT-APP-10** | `updateAppointment` | Modificación de horario generando conflicto con otra cita | Cita existe; nuevo horario colisiona con otra cita registrada | Lanza `IllegalStateException` ("Ya existe una cita en ese horario."); no se guarda. |
+| **UT-APP-11** | `deleteAppointment` | Eliminación exitosa de cita existente | ID cita = 5L; `existsById` retorna `true` | Invoca `deleteById(5L)`. |
+| **UT-APP-12** | `deleteAppointment` | Eliminación de cita inexistente | ID cita = 999L; `existsById` retorna `false` | Lanza `IllegalArgumentException` ("Cita no encontrada"); `deleteById()` nunca es invocado. |
+| **UT-APP-13** | `countToday` | Conteo de citas programadas para el día actual | Repositorio retorna 7 | Retorna valor numérico 7. |
 
 ---
 
-## 4. PRUEBAS FUNCIONALES (Colección de API - Insomnia)
+#### 3.1.3 `AuthService`
+- **Componente**: `co.edu.unbosque.service.AuthService`
+- **Dependencias a simular**: `UserRepository`, `PasswordEncoder`, `JwtService`, `AuthenticationManager`
 
-A continuación se detalla la configuración técnica para los endpoints del sistema. Esta colección puede importarse directamente en Insomnia definiendo variables de entorno (`{{base_url}}`, `{{token}}`).
-
-```json
-{
-  "_type": "export",
-  "__export_format": 4,
-  "__export_date": "2026-05-18",
-  "__export_source": "insomnia.desktop.app:v2023.5.8",
-  "resources": [
-    {
-      "_id": "env_oraltech",
-      "type": "environment",
-      "parentId": "wrk_oraltech",
-      "name": "OralTech Local (LAN)",
-      "data": {
-        "base_url": "http://localhost:8080/api",
-        "token": ""
-      }
-    },
-    {
-      "_id": "req_auth_register",
-      "type": "request",
-      "parentId": "fld_auth",
-      "name": "Registro de Usuario (Dra. Andrea)",
-      "method": "POST",
-      "url": "{{base_url}}/auth/register",
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" }
-      ],
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"username\": \"dr_andrea\",\n  \"password\": \"ClaveSegura123\",\n  \"name\": \"Dra. Andrea Martínez\",\n  \"email\": \"andrea.martinez@oraltech.com\",\n  \"role\": \"DENTIST\"\n}"
-      }
-    },
-    {
-      "_id": "req_auth_login",
-      "type": "request",
-      "parentId": "fld_auth",
-      "name": "Login Exitoso",
-      "method": "POST",
-      "url": "{{base_url}}/auth/login",
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" }
-      ],
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"username\": \"dr_andrea\",\n  \"password\": \"ClaveSegura123\"\n}"
-      }
-    },
-    {
-      "_id": "req_patient_create",
-      "type": "request",
-      "parentId": "fld_patients",
-      "name": "Crear Paciente",
-      "method": "POST",
-      "url": "{{base_url}}/patients",
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{token}}" }
-      ],
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"names\": \"Juan Fernando\",\n  \"firstSurname\": \"Pérez\",\n  \"secondSurname\": \"Castro\",\n  \"idType\": \"CC\",\n  \"idNumber\": \"1094888777\",\n  \"email\": \"juan.perez@gmail.com\",\n  \"sex\": \"M\",\n  \"birthDate\": \"1990-05-15\",\n  \"cellphone\": \"3157778899\"\n}"
-      }
-    }
-  ]
-}
-```
-
-### 4.1 Catálogo de Casos de Prueba Funcionales de API con Validación Robustecida de Respuestas
-
-Para elevar la robustez de las pruebas de API, se validan tanto los códigos de estado como el cuerpo del JSON esperado ante errores estructurados:
-
-| Módulo | Endpoint | Método | Headers | Body / Parámetros | Cód. HTTP | Validación Detallada del JSON de Respuesta |
-| :--- | :--- | :--- | :--- | :--- | :---: | :--- |
-| **Auth** | `/auth/login` | `POST` | `Content-Type: json` | Credenciales incorrectas | `401` | `{ "status": 401, "error": "Unauthorized", "message": "Bad credentials" }` |
-| **Patients** | `/patients` | `POST` | `Bearer JWT` | Sin `firstSurname` | `400` | `{ "status": 400, "error": "Bad Request", "errors": ["firstSurname is required"] }` |
-| **Clinica** | `/clinica/historia`| `POST` | `Bearer JWT` | `{"pacienteId": 9999}` | `404` | `{ "status": 404, "error": "Not Found", "message": "Paciente no encontrado" }` |
-| **Citas** | `/appointments` | `POST` | `Bearer JWT` | Horarios solapados | `400` | `{ "status": 400, "error": "Conflict", "message": "Ya existe una cita en ese horario." }` |
-| **Citas** | `/appointments` | `POST` | Ninguno (Sin Token) | Request válido | `401` | Acceso denegado antes de alcanzar el controlador por filtro Spring Security. |
+| ID Caso | Método Bajo Prueba | Escenario / Condición | Datos de Entrada Simulados | Resultado Esperado y Verificaciones |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-AUTH-01** | `register` | Registro exitoso de nuevo usuario con rol asignado | `RegisterRequest` válido; username y email no existen; `PasswordEncoder` retorna hash; `JwtService` retorna token | Usuario guardado en base de datos; retorna `AuthenticationResponse` con token, username y rol correspondiente. |
+| **UT-AUTH-02** | `register` | Intento de registro con nombre de usuario duplicado | `existsByUsername` retorna `true` | Lanza `RuntimeException` ("Username already exists"); contraseña no se encripta ni se persiste usuario. |
+| **UT-AUTH-03** | `register` | Intento de registro con correo electrónico duplicado | `existsByUsername` es `false`; `existsByEmail` retorna `true` | Lanza `RuntimeException` ("Email already exists"); no se persiste usuario. |
+| **UT-AUTH-04** | `authenticate` | Autenticación exitosa con credenciales válidas | `AuthenticationRequest` con usuario y clave correctos; `AuthenticationManager` valida con éxito; `findByUsername` retorna entidad | Retorna `AuthenticationResponse` con token JWT válido y rol. |
+| **UT-AUTH-05** | `authenticate` | Autenticación fallida por usuario inexistente post-validación | `AuthenticationManager` pasa pero `findByUsername` retorna `Optional.empty()` | Lanza `RuntimeException` ("User not found"). |
+| **UT-AUTH-06** | `authenticate` | Autenticación fallida por clave errónea | `AuthenticationManager` lanza `BadCredentialsException` | La excepción se propaga adecuadamente para manejo en la capa web. |
 
 ---
 
-## 5. PRUEBAS END-TO-END (E2E - Cypress)
+#### 3.1.4 `DashboardService`
+- **Componente**: `co.edu.unbosque.service.DashboardService`
+- **Dependencias a simular**: `PatientRepository`, `HistoriaClinicaRepository`, `AppointmentRepository`
 
-Las pruebas E2E simulan la experiencia real del odontólogo utilizando la interfaz web en React conectada a la base de datos PostgreSQL local.
-
-### 5.1 Robustecimiento con selectores `data-testid`
-Para evitar la fragilidad de las pruebas asociada a los estilos (CSS), traducciones o textos visibles, **se adopta el estándar profesional de pruebas utilizando selectores dedicados `data-testid`**. Esto separa el comportamiento de la interfaz de su aspecto visual.
-
-### 5.2 Implementación de Código de Pruebas E2E (Cypress)
-
-A continuación se muestra el código Cypress modular y robustecido.
-
-#### [oraltech_flow.cy.js](file:///c:/Users/ncama/git/oraltech/frontend/cypress/e2e/oraltech_flow.cy.js)
-```javascript
-describe('OralTech E2E System Flow - QA Robust Version', () => {
-
-  beforeEach(() => {
-    cy.clearCookies();
-    cy.clearLocalStorage();
-  });
-
-  it('Debería denegar acceso con credenciales incorrectas', () => {
-    cy.visit('http://localhost:5173/login');
-    
-    cy.get('[data-testid="input-username"]').type('error_user');
-    cy.get('[data-testid="input-password"]').type('BadPassword123');
-    cy.get('[data-testid="btn-submit"]').click();
-    
-    cy.get('[data-testid="alert-error"]')
-      .should('be.visible')
-      .and('contain', 'Credenciales incorrectas');
-  });
-
-  it('Debería ejecutar el flujo completo del ciclo de vida clínico', () => {
-    // 1. Inicio de sesión exitoso (Odontólogo)
-    cy.visit('http://localhost:5173/login');
-    cy.get('[data-testid="input-username"]').type('dr_andrea');
-    cy.get('[data-testid="input-password"]').type('ClaveSegura123');
-    cy.get('[data-testid="btn-submit"]').click();
-    
-    cy.url().should('include', '/dashboard');
-    cy.get('[data-testid="dashboard-title"]').should('contain', 'Dashboard');
-
-    // 2. Registro de Nuevo Paciente
-    cy.get('[data-testid="nav-patients"]').click();
-    cy.get('[data-testid="btn-new-patient"]').click();
-
-    cy.get('[data-testid="input-names"]').type('Mateo');
-    cy.get('[data-testid="input-firstSurname"]').type('Mendoza');
-    cy.get('[data-testid="input-secondSurname"]').type('Díaz');
-    cy.get('[data-testid="select-idType"]').select('CC');
-    cy.get('[data-testid="input-idNumber"]').type('1055666777');
-    cy.get('[data-testid="input-email"]').type('mateo.mendoza@gmail.com');
-    cy.get('[data-testid="input-birthDate"]').type('1994-11-22');
-    cy.get('[data-testid="input-cellphone"]').type('3102223344');
-    
-    cy.get('[data-testid="btn-save-patient"]').click();
-
-    cy.get('[data-testid="toast-notification"]')
-      .should('be.visible')
-      .and('contain', 'Paciente guardado exitosamente');
-
-    // 3. Crear Historia Clínica para Mateo Mendoza
-    cy.get('[data-testid="input-search-patient"]').type('1055666777');
-    cy.get('[data-testid="table-row-patient"]').first().click(); 
-    
-    cy.get('[data-testid="btn-create-clinical-record"]').click();
-    cy.get('[data-testid="select-dentist"]').select('Dra. Andrea Martínez');
-    cy.get('[data-testid="btn-confirm-record"]').click();
-
-    cy.get('[data-testid="clinical-tabs-panel"]').should('be.visible');
-    cy.get('[data-testid="tab-active"]').should('contain', 'Odontograma');
-
-    // 4. Agendamiento de Cita Médica
-    cy.get('[data-testid="nav-appointments"]').click();
-    cy.get('[data-testid="btn-new-appointment"]').click();
-    
-    cy.get('[data-testid="input-patient-search"]').type('Mateo Mendoza');
-    cy.get('[data-testid="autocomplete-item"]').first().click(); 
-
-    cy.get('[data-testid="input-appointment-title"]').type('Profilaxis e Higiene Oral');
-    cy.get('[data-testid="input-appointment-date"]').type('2026-06-15');
-    cy.get('[data-testid="input-appointment-startTime"]').type('08:00');
-    cy.get('[data-testid="input-appointment-endTime"]').type('08:30');
-    cy.get('[data-testid="textarea-notes"]').type('Cita de control rutinario');
-
-    cy.get('[data-testid="btn-save-appointment"]').click();
-
-    cy.get('[data-testid="calendar-event"]')
-      .should('be.visible')
-      .and('contain', 'Mateo Mendoza');
-  });
-});
-```
-
-### 5.3 Evidencias y Reportes de Ejecución
-
-Para robustecer la entrega y sustentar el plan de pruebas ante evaluaciones:
-1. **Capturas y Videos Automáticos**: Cypress está configurado en `cypress.config.js` para capturar de forma automática pantallas en caso de fallos (`screenshotOnRunFailure: true`) y grabar videos de la ejecución completa. Estos elementos se guardan en las carpetas `cypress/screenshots` and `cypress/videos` respectivamente.
-2. **Reportes Visuales**: Se integra **Mochawesome** como reportero HTML. Al ejecutar las pruebas en consola mediante `npx cypress run`, se compila un reporte HTML dinámico y visualmente premium que reúne la tasa de aprobación de las pruebas, los tiempos de ejecución de cada flujo y enlaces directos a las evidencias físicas.
+| ID Caso | Método Bajo Prueba | Escenario / Condición | Datos de Entrada Simulados | Resultado Esperado y Verificaciones |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-DASH-01** | `getStats` | Cálculo consolidado de métricas del dashboard | `patientRepository.count()` = 120; `historiaRepo.count()` = 95; `appointmentRepository.countByAppointmentDate(hoy)` = 8 | Retorna objeto `DashboardStats` con totalPatients = 120, totalClinicalHistories = 95, appointmentsToday = 8. |
 
 ---
 
-## 6. MATRIZ DE TRAZABILIDAD (Traceability Matrix Expandida)
+#### 3.1.5 `EmailService`
+- **Componente**: `co.edu.unbosque.service.EmailService`
+- **Dependencias a simular**: `JavaMailSender`
 
-Esta matriz asocia formalmente todos los Requerimientos Funcionales (RF) críticos del sistema con sus correspondientes pruebas de calidad de extremo a extremo.
-
-| Id Req. | Requerimiento Funcional (RF) | Módulo | Tipo de Prueba | Id Test Case | Objetivo de la Prueba |
-| :---: | :--- | :--- | :--- | :--- | :--- |
-| **RF-01** | El sistema debe encriptar las contraseñas de los usuarios en base de datos. | Autenticación | Unitaria | `shouldCreateUserWithBCrypt` | Validar codificación BCrypt en registro de usuarios. |
-| **RF-02** | El sistema debe permitir el inicio de sesión generando un Token JWT. | Autenticación | Funcional | `req_auth_login` | Validar retorno del token en respuesta JSON al autenticar. |
-| **RF-03** | El sistema no debe permitir la duplicidad de documentos de identidad. | Pacientes | Unitaria | `shouldThrowExceptionWhenPatientIdNumberAlreadyExists` | Lanzar excepción controlada en la capa de servicio ante duplicados. |
-| **RF-04** | El sistema calculará de forma dinámica la edad del paciente. | Pacientes | Integración | `shouldCreateAndPersistHistoriaClinica` | Validar edad calculada en base de datos mediante `@PostLoad`. |
-| **RF-05** | Una historia clínica debe estar asociada a un único paciente. | H. Clínicas | Integración | `shouldReturnConflictWhenCreatingDuplicateHistoriaClinica` | Validar código HTTP 409 y JSON de error ante duplicación clínica. |
-| **RF-06** | El sistema debe registrar antecedentes médicos y odontológicos. | H. Clínicas | E2E | `[data-testid="clinical-tabs-panel"]` | Verificar renderizado y persistencia de formularios clínicos. |
-| **RF-07** | El sistema debe validar que los bloques de citas de odontólogos no se solapen. | Citas | Unitaria | `shouldThrowExceptionWhenAppointmentTimeOverlaps` | Validar que no se agenden citas concurrentes para el mismo odontólogo. |
-| **RF-08** | El sistema debe enviar un correo de confirmación automática de citas. | Citas | Unitaria | `shouldCreateAppointmentSuccessfully` | Verificar invocación asíncrona a `EmailService.sendConfirmationEmail()`. |
-| **RF-09** | El sistema permitirá modificar los datos personales de un paciente. | Pacientes | Integración | `shouldUpdatePatientSuccessfully` | Validar persistencia de cambios en la base de datos de test. |
-| **RF-10** | El sistema permitirá eliminar un paciente del registro clínico. | Pacientes | Integración | `shouldDeletePatientSuccessfully` | Validar borrado seguro e integridad referencial en BD. |
-| **RF-11** | El sistema permitirá la cancelación de citas liberando el horario. | Citas | Integración | `shouldCancelAppointmentAndFreeTimeBlock` | Validar que el bloque horario sea seleccionable de nuevo al cancelar. |
-| **RF-12** | Solo usuarios autenticados con rol autorizado accederán a datos clínicos. | Seguridad | Integración | `shouldReturn403WhenRoleIsIncorrect` | Validar el bloqueo HTTP 403 ante llamadas con roles insuficientes. |
+| ID Caso | Método Bajo Prueba | Escenario / Condición | Datos de Entrada Simulados | Resultado Esperado y Verificaciones |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-MAIL-01** | `sendConfirmationEmail` | Envío exitoso de correo de confirmación de cita | Cita válida con paciente con correo asignado | Se crea mensaje MIME con asunto y destinatario correctos; se verifica invocación a `mailSender.send()`. |
+| **UT-MAIL-02** | `sendConfirmationEmail` | Paciente sin correo configurado | Cita con paciente con `email = null` o vacío | No se intenta enviar correo ni se producen excepciones no controladas. |
+| **UT-MAIL-03** | `sendConfirmationEmail` | Error al enviar correo por fallo de servidor SMTP | `mailSender.send()` lanza `MailException` | El servicio captura el error y registra log de advertencia sin romper la transacción de la cita. |
+| **UT-MAIL-04** | `sendReminderEmail` | Envío exitoso de recordatorio de cita programada | Cita válida para el día siguiente | Se envía correo de recordatorio con formato HTML adecuado. |
 
 ---
 
-## 7. CRITERIOS DE ACEPTACIÓN Y CALIDAD (Objetivos de Rendimiento - SLA)
+#### 3.1.6 `AppointmentReminderScheduler`
+- **Componente**: `co.edu.unbosque.service.AppointmentReminderScheduler`
+- **Dependencias a simular**: `AppointmentRepository`, `EmailService`
 
-Los siguientes parámetros configuran los Acuerdos de Nivel de Servicio (SLA) y métricas de calidad técnica esperadas del sistema **OralTech** antes del paso a producción.
+| ID Caso | Método Bajo Prueba | Escenario / Condición | Datos de Entrada Simulados | Resultado Esperado y Verificaciones |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-SCHED-01** | `sendDailyReminders` | Ejecución diaria con citas pendientes y confirmadas | Repositorio retorna 3 citas (2 con estado "PENDIENTE", 1 con estado "CONFIRMADA") para el día siguiente | Se invoca `emailService.sendReminderEmail()` exactamente 3 veces. |
+| **UT-SCHED-02** | `sendDailyReminders` | Exclusión de citas con estado cancelado | Repositorio retorna 2 citas (1 "PENDIENTE", 1 "CANCELADA") | Se invoca `sendReminderEmail()` únicamente 1 vez (excluyendo la cita cancelada). |
+| **UT-SCHED-03** | `sendDailyReminders` | Ejecución en día sin citas programadas | Repositorio retorna lista vacía | No se realizan llamadas a `sendReminderEmail()`. |
 
-### 7.1 Métricas de Cobertura (JaCoCo)
-- **Capa Service**: Cobertura de líneas `>= 85%`.
-- **Capa Controller**: Cobertura de líneas `>= 80%` (Validando códigos HTTP, seguridad y control de excepciones).
-- **Capa Repository**: Cobertura de líneas `>= 50%` (Enfocado en `@Query` complejas de solapamiento).
+---
 
-### 7.2 Objetivos de Rendimiento Esperados (SLA de API en Red LAN)
-Para garantizar la fluidez bajo la arquitectura cliente-servidor local de OralTech, se definen los siguientes objetivos de latencia, medidos mediante **Chrome DevTools (Network tab)** en la LAN local y validados con suites ligeras de **Apache JMeter**:
-- **Operaciones CRUD Estándar (Lectura/Escritura simple)**: Tiempo de respuesta en servidor `< 150ms`.
-- **Carga de Odontogramas e Historias Clínicas**: Latencia del servidor `< 500ms` (debido al cruce de tablas periodontales y endodónticas).
-- **Consultas del Calendario Mensual de Citas**: Latencia de respuesta de la API `< 800ms` (bajo escenarios de concurrencia de hasta 50 usuarios simultáneos en la LAN).
-- **Estabilidad de Consumo Backend**: Consumo de memoria en reposo `< 512MB` de RAM.
+### 3.2 Componente Guardián de Historias Clínicas (`HistoriaClinicaGuard`)
 
-### 7.3 Criterios de Éxito para Aprobación
-1. **0 Errores Críticos (Blockers)**: Ningún fallo crítico de base de datos o excepción no controlada expuesta al cliente.
-2. **E2E Automatizado**: Éxito total de la suite de Cypress en ejecuciones headless.
-3. **Manejo de Excepciones**: El 100% de los errores de negocio deben retornar estructuras JSON válidas de error procesables por la UI de React.
+- **Componente**: `co.edu.unbosque.service.clinica.HistoriaClinicaGuard`
+- **Dependencias**: Ninguna (Componente de lógica pura)
+
+| ID Caso | Método Bajo Prueba | Escenario / Condición | Datos de Entrada Simulados | Resultado Esperado y Verificaciones |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-GUARD-01** | `requireActiva` | Verificación de historia en estado ACTIVA | `HistoriaClinica` con estado `EstadoHistoria.ACTIVA` | Ejecución exitosa sin lanzar excepciones. |
+| **UT-GUARD-02** | `requireActiva` | Intento de modificación sobre historia CERRADA | `HistoriaClinica` con estado `EstadoHistoria.CERRADA` | Lanza `ResponseStatusException` con código `HttpStatus.CONFLICT` (409) y mensaje "La historia clínica está cerrada y no permite modificaciones". |
+| **UT-GUARD-03** | `validateSignatureSize` | Firma nula o en blanco | Firma = `null` o `""` | Ejecución exitosa sin lanzar excepciones. |
+| **UT-GUARD-04** | `validateSignatureSize` | Firma en Base64 válida con tamaño menor a 200KB | String Base64 válido de 50KB | Ejecución exitosa sin lanzar excepciones. |
+| **UT-GUARD-05** | `validateSignatureSize` | Firma en Base64 que supera el límite de 200KB | String Base64 válido decodificable a más de 204.800 bytes | Lanza `ResponseStatusException` con código `HttpStatus.BAD_REQUEST` (400) indicando exceso de tamaño. |
+| **UT-GUARD-06** | `validateSignatureSize` | Cadena no válida en formato Base64 | String = "esto-no-es-base64-valido!!!" | Lanza `ResponseStatusException` con código `HttpStatus.BAD_REQUEST` (400) indicando formato inválido. |
+
+---
+
+### 3.3 Servicios del Módulo Clínico
+
+#### 3.3.1 `HistoriaClinicaService`
+- **Componente**: `co.edu.unbosque.service.clinica.HistoriaClinicaService`
+- **Dependencias a simular**: `HistoriaClinicaRepository`, `PatientRepository`, `UserRepository`
+
+| ID Caso | Método Bajo Prueba | Escenario / Condición | Datos de Entrada Simulados | Resultado Esperado y Verificaciones |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-HC-01** | `create` | Creación exitosa de historia clínica para paciente sin historia previa | `existsByPacienteId` retorna `false`; paciente existe; odontólogo existe | Historia creada con estado `ACTIVA`; guardada en repositorio; retorna DTO con datos completos. |
+| **UT-HC-02** | `create` | Intento de creación para paciente que ya tiene historia clínica | `existsByPacienteId` retorna `true` | Lanza `ResponseStatusException` (409 Conflict: "Ya existe una historia clínica para este paciente"). |
+| **UT-HC-03** | `create` | Creación con ID de paciente inexistente | `existsByPacienteId` es `false`; `patientRepo.findById` retorna vacío | Lanza `ResponseStatusException` (404 Not Found: "Paciente no encontrado"). |
+| **UT-HC-04** | `create` | Creación con ID de odontólogo inexistente | Paciente existe; `userRepo.findById` retorna vacío | Lanza `ResponseStatusException` (404 Not Found: "Odontólogo no encontrado"). |
+| **UT-HC-05** | `getById` | Consulta por UUID existente | UUID válido; repositorio retorna historia | Retorna DTO de respuesta con mapeo de paciente y odontólogo. |
+| **UT-HC-06** | `getById` | Consulta por UUID inexistente | UUID aleatorio; repositorio retorna vacío | Lanza `ResponseStatusException` (404 Not Found: "Historia clínica no encontrada"). |
+| **UT-HC-07** | `getByPacienteId` | Consulta por ID de paciente con historia registrada | ID paciente = 5L; repositorio retorna historia | Retorna DTO de respuesta. |
+| **UT-HC-08** | `getByPacienteId` | Consulta por ID de paciente sin historia | ID paciente = 99L; repositorio retorna vacío | Lanza `ResponseStatusException` (404 Not Found). |
+| **UT-HC-09** | `findOrThrow` | Búsqueda interna de entidad existente | UUID válido | Retorna la entidad `HistoriaClinica`. |
+| **UT-HC-10** | `findOrThrow` | Búsqueda interna de entidad inexistente | UUID inexistente | Lanza `ResponseStatusException` (404 Not Found). |
+
+---
+
+#### 3.3.2 Servicios Clínicos con Patrón Upsert / Get (`Antecedentes`, `AnalisisPeriodontal`, `AnalisisPulpar`, `Anamnesis`, `Diagnostico`, `ExamenClinico`, `Interconsulta`, `OdontogramaProtesis`, `Pronostico`)
+
+Para cada uno de estos 9 servicios clínicos dependientes de `HistoriaClinicaService` y `HistoriaClinicaGuard`, se aplican los siguientes casos de prueba estandarizados:
+
+| ID Caso Base | Método Bajo Prueba | Escenario / Condición | Datos Simulados | Resultado Esperado |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-CLN-UP-01** | `upsert` | Creación de nuevo registro clínico cuando no existía previo | Historia existe y está ACTIVA; `repo.findByHistoriaClinicaId` retorna vacío | Se crea nueva entidad asociada a la historia; se pueblan todos los campos; se invoca `save()`; retorna DTO. |
+| **UT-CLN-UP-02** | `upsert` | Actualización de registro clínico preexistente | Historia existe y está ACTIVA; `repo.findByHistoriaClinicaId` retorna entidad previa | Se modifican los valores de la entidad existente; se invoca `save()`; retorna DTO actualizado. |
+| **UT-CLN-UP-03** | `upsert` | Intento de modificación cuando la historia clínica está CERRADA | `guard.requireActiva()` lanza 409 Conflict | Se propaga la excepción 409 Conflict; `save()` nunca es invocado. |
+| **UT-CLN-UP-04** | `upsert` | Historia clínica no encontrada por UUID | `historiaService.findOrThrow()` lanza 404 Not Found | Se propaga la excepción 404 Not Found. |
+| **UT-CLN-GET-01** | `get` | Consulta de registro clínico existente para la historia | `repo.findByHistoriaClinicaId` retorna entidad | Retorna DTO con todos los datos clínicos poblados. |
+| **UT-CLN-GET-02** | `get` | Consulta de registro clínico cuando aún no se ha diligenciado | `repo.findByHistoriaClinicaId` retorna vacío | Retorna DTO vacío por defecto sin producir errores. |
+
+*Casos específicos aplicables por servicio:*
+- **`ConsentimientoService`**:
+  - **UT-CONS-01**: `upsert` valida la firma del paciente y firma del profesional mediante `guard.validateSignatureSize()`.
+  - **UT-CONS-02**: `upsert` rechaza firmas en Base64 que exceden 200KB o con formato corrupto.
+- **`AntecedentesService`**:
+  - **UT-ANTE-01**: `upsert` cubre mapeo exhaustivo de todos los antecedentes médicos y odontológicos (alergias, diabetes, hipertensión, hemorragias, medicación actual, etc.).
+
+---
+
+#### 3.3.3 Servicios Clínicos con Patrón Colección / CRUD (`EvolucionClinicaService`, `OdontogramaService`, `PlanTratamientoService`)
+
+#### `EvolucionClinicaService`
+- **Dependencias**: `EvolucionClinicaRepository`, `HistoriaClinicaService`, `HistoriaClinicaGuard`
+- **Casos de Prueba**:
+  - **UT-EVO-01**: `create` exitoso cuando la historia está ACTIVA -> Persiste evolución con fecha/hora y notas; retorna DTO.
+  - **UT-EVO-02**: `create` rechazado si la historia está CERRADA -> Lanza 409 Conflict.
+  - **UT-EVO-03**: `list` retorna lista de evoluciones ordenadas para una historia clínica válida.
+  - **UT-EVO-04**: `delete` exitoso de evolución perteneciente a la historia activa -> Invoca `delete()`.
+  - **UT-EVO-05**: `delete` falla si la evolución no pertenece al `historiaId` indicado -> Lanza 400 Bad Request.
+  - **UT-EVO-06**: `delete` falla si la evolución no existe -> Lanza 404 Not Found.
+
+#### `OdontogramaService`
+- **Dependencias**: `OdontogramaRegistroRepository`, `EvolucionClinicaRepository`, `HistoriaClinicaService`, `HistoriaClinicaGuard`
+- **Casos de Prueba**:
+  - **UT-ODON-01**: `create` exitoso de hallazgo en odontograma con tipo de evento y estado válidos (ej. "CARIES", "ACTIVO") -> Se guarda y retorna DTO.
+  - **UT-ODON-02**: `create` con vinculación opcional a una evolución existente -> Verifica asociación de la evolución.
+  - **UT-ODON-03**: `create` con `evolucionId` inexistente -> Lanza 404 Not Found ("Evolución no encontrada").
+  - **UT-ODON-04**: `create` con tipo de evento inválido en enum -> Lanza 400 Bad Request ("Tipo de evento inválido").
+  - **UT-ODON-05**: `create` con estado de evento inválido -> Lanza 400 Bad Request ("Estado inválido").
+  - **UT-ODON-06**: `create` rechazado en historia CERRADA -> Lanza 409 Conflict.
+  - **UT-ODON-07**: `list` retorna lista completa de registros del odontograma para la historia.
+  - **UT-ODON-08**: `delete` exitoso de registro perteneciente a la historia -> Invoca `delete()`.
+  - **UT-ODON-09**: `delete` de registro que pertenece a otra historia -> Lanza 400 Bad Request ("El registro no pertenece a esta historia").
+  - **UT-ODON-10**: `delete` de registro inexistente -> Lanza 404 Not Found.
+
+#### `PlanTratamientoService`
+- **Dependencias**: `PlanTratamientoRepository`, `HistoriaClinicaService`, `HistoriaClinicaGuard`
+- **Casos de Prueba**:
+  - **UT-PLAN-01**: `create` exitoso de ítem de tratamiento con procedimiento, costo y fase -> Se persiste y retorna DTO.
+  - **UT-PLAN-02**: `create` rechazado en historia CERRADA -> Lanza 409 Conflict.
+  - **UT-PLAN-03**: `list` retorna lista de tratamientos planificados para la historia.
+  - **UT-PLAN-04**: `updateEstado` exitoso cambiando estado de tratamiento (ej. "REALIZADO") en historia activa -> Guarda y retorna DTO.
+  - **UT-PLAN-05**: `delete` exitoso de ítem de tratamiento -> Invoca `delete()`.
+  - **UT-PLAN-06**: `delete` de ítem inexistente o no perteneciente a la historia -> Lanza 404/400.
+
+---
+
+### 3.4 Seguridad, Filtros y Manejo Global de Excepciones
+
+#### 3.4.1 `JwtService`
+- **Componente**: `co.edu.unbosque.security.JwtService`
+- **Dependencias**: Ninguna (Lógica criptográfica JWT)
+
+| ID Caso | Método Bajo Prueba | Escenario / Condición | Datos de Entrada | Resultado Esperado |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-JWT-01** | `generateToken` | Generación de token JWT estándar para un `UserDetails` | Usuario "dr_andrea" | Retorna token firmado no nulo y no vacío. |
+| **UT-JWT-02** | `extractUsername` | Extracción correcta del username desde el token generado | Token válido de "dr_andrea" | Retorna "dr_andrea". |
+| **UT-JWT-03** | `isTokenValid` | Validación exitosa de token con el usuario emisor | Token válido y `UserDetails` con mismo username | Retorna `true`. |
+| **UT-JWT-04** | `isTokenValid` | Validación de token contra un usuario diferente | Token de "dr_andrea" y `UserDetails` de "dr_carlos" | Retorna `false`. |
+| **UT-JWT-05** | `isTokenValid` | Validación de token expirado | Token configurado con tiempo de expiración en el pasado | Lanza excepción de expiración o retorna `false`. |
+
+---
+
+#### 3.4.2 `JwtAuthenticationFilter`
+- **Componente**: `co.edu.unbosque.security.JwtAuthenticationFilter`
+- **Dependencias a simular**: `JwtService`, `UserDetailsService`, `HttpServletRequest`, `HttpServletResponse`, `FilterChain`
+
+| ID Caso | Método Bajo Prueba | Escenario / Condición | Datos de Entrada | Resultado Esperado |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-FILT-01** | `doFilterInternal` | Petición sin cabecera `Authorization` | Request sin header | Continúa la cadena de filtros sin autenticar en `SecurityContextHolder`. |
+| **UT-FILT-02** | `doFilterInternal` | Petición con cabecera `Authorization` que no inicia con "Bearer " | Header = "Basic 12345" | Continúa la cadena de filtros sin autenticar. |
+| **UT-FILT-03** | `doFilterInternal` | Petición con Token JWT válido | Header = "Bearer token_valido"; `jwtService.isTokenValid` = `true` | Carga `UserDetails` y establece autenticación `UsernamePasswordAuthenticationToken` en el contexto de seguridad. |
+| **UT-FILT-04** | `doFilterInternal` | Petición con Token JWT inválido o expirado | Header = "Bearer token_invalido"; `jwtService.isTokenValid` = `false` | No establece autenticación y continúa la cadena de filtros. |
+
+---
+
+#### 3.4.3 `GlobalExceptionHandler`
+- **Componente**: `co.edu.unbosque.exception.GlobalExceptionHandler`
+- **Dependencias**: Ninguna
+
+| ID Caso | Método Bajo Prueba | Escenario / Condición | Excepción Entrada | Resultado Esperado |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-EX-01** | `handleResponseStatusException` | Manejo de excepción con código HTTP específico y razón | `ResponseStatusException(HttpStatus.NOT_FOUND, "No encontrado")` | Retorna `ResponseEntity` con status 404 y body `{"message": "No encontrado"}`. |
+| **UT-EX-02** | `handleResponseStatusException` | Manejo de excepción con razón nula | `ResponseStatusException(HttpStatus.BAD_REQUEST, null)` | Retorna `ResponseEntity` con status 400 y body `{"message": "Error"}`. |
+| **UT-EX-03** | `handleRuntimeException` | Manejo de excepción genérica de negocio en tiempo de ejecución | `RuntimeException("Datos inválidos")` | Retorna `ResponseEntity` con status 400 Bad Request y body `{"message": "Datos inválidos"}`. |
+| **UT-EX-04** | `handleBadCredentials` | Manejo de error de credenciales incorrectas | `BadCredentialsException("Bad credentials")` | Retorna `ResponseEntity` con status 401 Unauthorized y body `{"message": "Credenciales inválidas"}`. |
+
+---
+
+### 3.5 Controladores REST (Pruebas Unitarias de Capa Web)
+
+Las pruebas unitarias de los controladores validan que cada endpoint invoque al servicio correspondiente y retorne el código HTTP y formato correctos:
+
+| ID Caso | Controlador | Método / Endpoint | Escenario | Resultado Esperado |
+| :--- | :--- | :--- | :--- | :--- |
+| **UT-CTRL-01** | `PatientController` | `GET /api/patients` | Servicio retorna lista de pacientes | Retorna HTTP 200 OK con la lista de pacientes. |
+| **UT-CTRL-02** | `PatientController` | `GET /api/patients/{id}` | Paciente encontrado | Retorna HTTP 200 OK con el paciente. |
+| **UT-CTRL-03** | `PatientController` | `GET /api/patients/{id}` | Paciente no encontrado (retorna empty) | Retorna HTTP 404 Not Found. |
+| **UT-CTRL-04** | `PatientController` | `POST /api/patients` | Creación exitosa | Retorna HTTP 200 OK con el paciente creado. |
+| **UT-CTRL-05** | `PatientController` | `PUT /api/patients/{id}` | Actualización exitosa | Retorna HTTP 200 OK con el paciente modificado. |
+| **UT-CTRL-06** | `PatientController` | `PUT /api/patients/{id}` | Actualización lanza `RuntimeException` | Retorna HTTP 404 Not Found. |
+| **UT-CTRL-07** | `PatientController` | `DELETE /api/patients/{id}` | Eliminación exitosa | Retorna HTTP 204 No Content. |
+| **UT-CTRL-08** | `PatientController` | `DELETE /api/patients/{id}` | Eliminación lanza `RuntimeException` | Retorna HTTP 404 Not Found. |
+| **UT-CTRL-09** | `AppointmentController` | `GET /api/appointments` | Consulta por rango de fechas | Retorna HTTP 200 OK con lista de citas. |
+| **UT-CTRL-10** | `AppointmentController` | `POST /api/appointments` | Creación exitosa | Retorna HTTP 200 OK con DTO de cita. |
+| **UT-CTRL-11** | `AppointmentController` | `DELETE /api/appointments/{id}` | Eliminación exitosa | Retorna HTTP 204 No Content. |
+| **UT-CTRL-12** | `AuthController` | `POST /api/auth/register` | Registro exitoso | Retorna HTTP 200 OK con token de autenticación. |
+| **UT-CTRL-13** | `AuthController` | `POST /api/auth/login` | Login exitoso | Retorna HTTP 200 OK con token. |
+| **UT-CTRL-14** | `DashboardController` | `GET /api/dashboard/stats` | Consulta de estadísticas | Retorna HTTP 200 OK con estadísticas del dashboard. |
+| **UT-CTRL-15** | `HistoriaClinicaController` | `POST /api/clinica/historia` | Creación exitosa | Retorna HTTP 200 OK con datos de la historia. |
+| **UT-CTRL-16** | `HistoriaClinicaController` | `GET /api/clinica/historia/{id}` | Consulta por UUID | Retorna HTTP 200 OK con la historia clínica. |
+| **UT-CTRL-17** | `HistoriaClinicaController` | `GET /api/clinica/historia/paciente/{pacienteId}` | Consulta por ID de paciente | Retorna HTTP 200 OK. |
+
+---
+
+## 4. ESTIMACIÓN Y PROYECCIÓN DE COBERTURA (JaCoCo)
+
+La siguiente tabla detalla la contribución estimada de cada suite de pruebas a la cobertura global del backend para asegurar el cumplimiento del objetivo $\ge$ 70%:
+
+| Módulo / Paquete | Clases Incluidas | Cantidad de Casos Planificados | Cobertura de Líneas Estimada |
+| :--- | :--- | :---: | :---: |
+| **Core Services** (`service`) | `PatientService`, `AppointmentService`, `AuthService`, `DashboardService`, `EmailService`, `AppointmentReminderScheduler` | 38 casos | **90% - 95%** |
+| **Clinical Services** (`service.clinica`) | `HistoriaClinicaGuard`, `HistoriaClinicaService`, y 13 servicios de especialidad odontológica | 62 casos | **85% - 92%** |
+| **Security & Exceptions** (`security`, `exception`) | `JwtService`, `JwtAuthenticationFilter`, `GlobalExceptionHandler` | 13 casos | **85% - 90%** |
+| **REST Controllers** (`controller`, `controller.clinica`) | `PatientController`, `AppointmentController`, `AuthController`, `DashboardController`, `HistoriaClinicaController`, y submódulos clínicos | 25 casos | **75% - 85%** |
+| **TOTAL PROYECTADO BACKEND** | **Todas las clases con lógica de negocio y presentación** | **138 casos** | **$\ge$ 80% (Supera ampliamente el 70% requerido)** |
+
+---
+
+## 5. MATRIZ DE TRAZABILIDAD (Requerimientos vs. Pruebas Unitarias)
+
+| ID Req. | Requerimiento de Negocio / Sistema | Clase Responsable | IDs de Casos de Prueba Asociados |
+| :---: | :--- | :--- | :--- |
+| **RF-01** | Registro y encriptación de contraseñas de usuarios | `AuthService` | UT-AUTH-01, UT-AUTH-02, UT-AUTH-03 |
+| **RF-02** | Autenticación y generación de tokens JWT | `AuthService`, `JwtService` | UT-AUTH-04, UT-AUTH-05, UT-AUTH-06, UT-JWT-01 a UT-JWT-05 |
+| **RF-03** | Validación de unicidad de documento de identidad en pacientes | `PatientService` | UT-PAT-07, UT-PAT-08 |
+| **RF-04** | Operaciones CRUD sobre información de pacientes | `PatientService`, `PatientController` | UT-PAT-01 a UT-PAT-06, UT-PAT-09 a UT-PAT-12, UT-CTRL-01 a UT-CTRL-08 |
+| **RF-05** | Prevención de solapamiento de horarios en citas médicas | `AppointmentService` | UT-APP-03, UT-APP-06, UT-APP-07, UT-APP-10 |
+| **RF-06** | Envío automático de notificaciones de citas y recordatorios | `AppointmentService`, `EmailService`, `AppointmentReminderScheduler` | UT-APP-03, UT-MAIL-01 a UT-MAIL-04, UT-SCHED-01 a UT-SCHED-03 |
+| **RF-07** | Creación y unicidad de Historia Clínica por paciente | `HistoriaClinicaService`, `HistoriaClinicaGuard` | UT-HC-01 a UT-HC-10, UT-GUARD-01, UT-GUARD-02 |
+| **RF-08** | Inmutabilidad de historias clínicas cerradas | `HistoriaClinicaGuard`, Servicios Clínicos | UT-GUARD-01, UT-GUARD-02, UT-CLN-UP-03, UT-EVO-02, UT-ODON-06 |
+| **RF-09** | Validación técnica de firmas digitales en consentimientos (límite 200KB) | `HistoriaClinicaGuard`, `ConsentimientoService` | UT-GUARD-03 a UT-GUARD-06, UT-CONS-01, UT-CONS-02 |
+| **RF-10** | Registro y seguimiento de hallazgos en Odontograma | `OdontogramaService` | UT-ODON-01 a UT-ODON-10 |
+| **RF-11** | Registro de evoluciones clínicas y planes de tratamiento | `EvolucionClinicaService`, `PlanTratamientoService` | UT-EVO-01 a UT-EVO-06, UT-PLAN-01 a UT-PLAN-06 |
+| **RF-12** | Generación de métricas consolidadas del Dashboard | `DashboardService`, `DashboardController` | UT-DASH-01, UT-CTRL-14 |
+| **RF-13** | Manejo estructurado de errores y respuestas HTTP uniformes | `GlobalExceptionHandler` | UT-EX-01 a UT-EX-04 |
+
+---
+
+## 6. GUÍA DE EJECUCIÓN Y VERIFICACIÓN DE JA CO CO
+
+### 6.1 Comando de Ejecución
+Las pruebas unitarias y la generación del reporte de JaCoCo se ejecutan desde el directorio del backend (`backend/oraltech`):
+- Comando: `mvn clean test jacoco:report`
+
+### 6.2 Ubicación del Reporte de Cobertura
+- Archivo HTML principal: `target/site/jacoco/index.html`
+
+### 6.3 Lista de Verificación para Aprobación
+1. **Compilación y Ejecución**: El 100% de los casos de prueba unitarios planificados deben ejecutarse con estado **PASSED** (sin fallos ni errores).
+2. **Umbral Mínimo**: La columna **Total Instructions** y **Total Lines** del reporte general de JaCoCo debe reflejar $\ge$ **70%**.
+3. **Capa Service**: Ningún servicio del paquete `service` o `service.clinica` debe tener una cobertura inferior al **80%**.
+4. **Tiempo de Ejecución**: La suite completa de pruebas unitarias debe ejecutarse en menos de **15 segundos** gracias al aislamiento total con Mockito.

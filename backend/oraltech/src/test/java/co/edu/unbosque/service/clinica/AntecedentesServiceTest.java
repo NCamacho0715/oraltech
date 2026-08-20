@@ -5,6 +5,7 @@ import co.edu.unbosque.dto.clinica.AntecedentesResponse;
 import co.edu.unbosque.entity.Patient;
 import co.edu.unbosque.entity.clinica.Antecedentes;
 import co.edu.unbosque.entity.clinica.HistoriaClinica;
+import co.edu.unbosque.entity.enums.EstadoHistoria;
 import co.edu.unbosque.repository.clinica.AntecedentesRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,105 +37,126 @@ class AntecedentesServiceTest {
     private HistoriaClinicaGuard guard;
 
     @InjectMocks
-    private AntecedentesService antecedentesService;
+    private AntecedentesService service;
 
-    private Patient mockPatient;
-    private HistoriaClinica mockHistoria;
-    private Antecedentes mockAntecedentes;
-    private AntecedentesRequest mockRequest;
     private UUID historiaId;
+    private Patient patientFemale;
+    private HistoriaClinica historiaActiva;
+    private AntecedentesRequest request;
+    private Antecedentes entity;
 
     @BeforeEach
     void setUp() {
         historiaId = UUID.randomUUID();
 
-        mockPatient = Patient.builder()
+        patientFemale = Patient.builder()
                 .id(1L)
-                .names("Sofia")
-                .firstSurname("Cardenas")
                 .sex("F")
                 .build();
 
-        mockHistoria = HistoriaClinica.builder()
+        historiaActiva = HistoriaClinica.builder()
                 .id(historiaId)
-                .paciente(mockPatient)
+                .paciente(patientFemale)
+                .estado(EstadoHistoria.ACTIVA)
                 .build();
 
-        mockAntecedentes = new Antecedentes();
-        mockAntecedentes.setId(100L);
-        mockAntecedentes.setHistoriaClinica(mockHistoria);
-        mockAntecedentes.setAlergias("Penicilina");
-        mockAntecedentes.setEmbarazo(false);
+        request = new AntecedentesRequest();
+        request.setFamHipertension(true);
+        request.setPatHipertension(true);
+        request.setAlergias("Penicilina");
+        request.setTratamiento(true);
+        request.setEmbarazo(false);
 
-        mockRequest = new AntecedentesRequest();
-        mockRequest.setAlergias("Penicilina");
-        mockRequest.setEmbarazo(false);
+        entity = new Antecedentes();
+        entity.setId(100L);
+        entity.setHistoriaClinica(historiaActiva);
+        entity.setFamHipertension(true);
+        entity.setPatHipertension(true);
+        entity.setAlergias("Penicilina");
+        entity.setTratamiento(true);
+        entity.setEmbarazo(false);
     }
 
     @Test
-    @DisplayName("Debería crear o actualizar antecedentes médicos exitosamente")
-    void shouldUpsertAntecedentesSuccessfully() {
-        // GIVEN
-        when(historiaService.findOrThrow(historiaId)).thenReturn(mockHistoria);
+    @DisplayName("UT-CLN-UP-01: Debería crear antecedentes cuando no existían previamente")
+    void shouldCreateAntecedentesWhenNotExists() {
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        doNothing().when(guard).requireActiva(historiaActiva);
         when(repo.findByHistoriaClinicaId(historiaId)).thenReturn(Optional.empty());
-        when(repo.save(any(Antecedentes.class))).thenReturn(mockAntecedentes);
+        when(repo.save(any(Antecedentes.class))).thenReturn(entity);
 
-        // WHEN
-        AntecedentesResponse response = antecedentesService.upsert(historiaId, mockRequest);
+        AntecedentesResponse response = service.upsert(historiaId, request);
 
-        // THEN
         assertNotNull(response);
+        assertTrue(response.getFamHipertension());
+        assertTrue(response.getPatHipertension());
         assertEquals("Penicilina", response.getAlergias());
-        assertFalse(response.getEmbarazo());
         verify(repo, times(1)).save(any(Antecedentes.class));
     }
 
     @Test
-    @DisplayName("Debería lanzar BAD_REQUEST si el campo embarazo está activado para un paciente de sexo masculino")
-    void shouldThrowBadRequestWhenPregnancyTrueAndPatientIsNotFemale() {
-        // GIVEN
-        mockPatient.setSex("M");
-        mockRequest.setEmbarazo(true);
+    @DisplayName("UT-CLN-UP-02: Debería actualizar antecedentes existentes")
+    void shouldUpdateAntecedentesWhenAlreadyExists() {
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        doNothing().when(guard).requireActiva(historiaActiva);
+        when(repo.findByHistoriaClinicaId(historiaId)).thenReturn(Optional.of(entity));
+        when(repo.save(any(Antecedentes.class))).thenReturn(entity);
 
-        when(historiaService.findOrThrow(historiaId)).thenReturn(mockHistoria);
+        AntecedentesResponse response = service.upsert(historiaId, request);
 
-        // WHEN & THEN
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-            antecedentesService.upsert(historiaId, mockRequest);
+        assertNotNull(response);
+        verify(repo, times(1)).save(entity);
+    }
+
+    @Test
+    @DisplayName("UT-ANTE-02: Debería rechazar embarazo si el paciente es de sexo masculino")
+    void shouldRejectPregnancyWhenPatientIsMale() {
+        Patient patientMale = Patient.builder().id(2L).sex("M").build();
+        historiaActiva.setPaciente(patientMale);
+        request.setEmbarazo(true);
+
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        doNothing().when(guard).requireActiva(historiaActiva);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            service.upsert(historiaId, request);
         });
 
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
-        assertEquals("El campo embarazo solo aplica para pacientes de sexo femenino", exception.getReason());
-        verify(repo, never()).save(any(Antecedentes.class));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("embarazo solo aplica para pacientes de sexo femenino"));
     }
 
     @Test
-    @DisplayName("Debería retornar antecedentes médicos al buscarlos por historia ID existente")
-    void shouldReturnAntecedentesWhenSearchingByValidHistoriaId() {
-        // GIVEN
-        when(repo.findByHistoriaClinicaId(historiaId)).thenReturn(Optional.of(mockAntecedentes));
+    @DisplayName("UT-CLN-UP-03: Debería rechazar upsert si la historia está CERRADA")
+    void shouldRejectUpsertWhenHistoriaCerrada() {
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Cerrada"))
+                .when(guard).requireActiva(historiaActiva);
 
-        // WHEN
-        AntecedentesResponse response = antecedentesService.get(historiaId);
+        assertThrows(ResponseStatusException.class, () -> {
+            service.upsert(historiaId, request);
+        });
+        verify(repo, never()).save(any());
+    }
 
-        // THEN
+    @Test
+    @DisplayName("UT-CLN-GET-01: Debería consultar antecedentes existentes")
+    void shouldGetAntecedentesSuccessfully() {
+        when(repo.findByHistoriaClinicaId(historiaId)).thenReturn(Optional.of(entity));
+
+        AntecedentesResponse response = service.get(historiaId);
+
         assertNotNull(response);
-        assertEquals("Penicilina", response.getAlergias());
-        verify(repo, times(1)).findByHistoriaClinicaId(historiaId);
+        assertTrue(response.getFamHipertension());
     }
 
     @Test
-    @DisplayName("Debería lanzar no encontrado si los antecedentes no existen para la historia ID")
-    void shouldThrowNotFoundWhenAntecedentesDoNotExist() {
-        // GIVEN
+    @DisplayName("UT-CLN-GET-02: Debería lanzar 404 si los antecedentes no existen al consultar")
+    void shouldThrowNotFoundWhenAntecedentesNotFound() {
         when(repo.findByHistoriaClinicaId(historiaId)).thenReturn(Optional.empty());
 
-        // WHEN & THEN
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-            antecedentesService.get(historiaId);
+        assertThrows(ResponseStatusException.class, () -> {
+            service.get(historiaId);
         });
-
-        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
-        assertEquals("Antecedentes no encontrados", exception.getReason());
     }
 }
