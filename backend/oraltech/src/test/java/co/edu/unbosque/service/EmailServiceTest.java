@@ -10,11 +10,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,7 +55,7 @@ class EmailServiceTest {
     }
 
     @Test
-    @DisplayName("Debería enviar correo de confirmación de cita exitosamente")
+    @DisplayName("UT-MAIL-01: Debería enviar correo de confirmación de cita exitosamente")
     void shouldSendConfirmationEmailSuccessfully() {
         // GIVEN
         when(mailSender.createMimeMessage()).thenReturn(mockMimeMessage);
@@ -66,7 +68,7 @@ class EmailServiceTest {
     }
 
     @Test
-    @DisplayName("Debería omitir el envío de confirmación si el paciente no tiene email")
+    @DisplayName("UT-MAIL-02: Debería omitir el envío de confirmación si el paciente no tiene email")
     void shouldSkipConfirmationEmailWhenPatientHasNoEmail() {
         // GIVEN
         mockPatient.setEmail(null);
@@ -79,7 +81,19 @@ class EmailServiceTest {
     }
 
     @Test
-    @DisplayName("Debería enviar correo de recordatorio de cita exitosamente")
+    @DisplayName("UT-MAIL-03: Debería capturar error de envío sin propagar excepción al llamador")
+    void shouldHandleMailExceptionGracefully() {
+        // GIVEN
+        when(mailSender.createMimeMessage()).thenReturn(mockMimeMessage);
+        doThrow(new MailSendException("SMTP error")).when(mailSender).send(mockMimeMessage);
+
+        // WHEN & THEN
+        assertDoesNotThrow(() -> emailService.sendConfirmationEmail(mockAppointment));
+        verify(mailSender, times(1)).send(mockMimeMessage);
+    }
+
+    @Test
+    @DisplayName("UT-MAIL-04: Debería enviar correo de recordatorio de cita exitosamente")
     void shouldSendReminderEmailSuccessfully() {
         // GIVEN
         when(mailSender.createMimeMessage()).thenReturn(mockMimeMessage);
@@ -92,10 +106,10 @@ class EmailServiceTest {
     }
 
     @Test
-    @DisplayName("Debería omitir el envío de recordatorio si el paciente no tiene email")
-    void shouldSkipReminderEmailWhenPatientHasNoEmail() {
+    @DisplayName("Debería omitir el envío de recordatorio si el email está en blanco")
+    void shouldSkipReminderEmailWhenPatientEmailIsBlank() {
         // GIVEN
-        mockPatient.setEmail(" ");
+        mockPatient.setEmail("   ");
 
         // WHEN
         emailService.sendReminderEmail(mockAppointment);

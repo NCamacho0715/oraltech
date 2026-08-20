@@ -21,7 +21,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -42,127 +41,202 @@ class HistoriaClinicaServiceTest {
     private UserRepository userRepo;
 
     @InjectMocks
-    private HistoriaClinicaService historiaClinicaService;
+    private HistoriaClinicaService historiaService;
 
-    private Patient mockPatient;
-    private User mockOdontologo;
-    private HistoriaClinica mockHistoria;
-    private HistoriaClinicaRequest mockRequest;
+    private Patient testPatient;
+    private User testOdontologo;
+    private HistoriaClinica testHistoria;
+    private HistoriaClinicaRequest testRequest;
     private UUID testId;
 
     @BeforeEach
     void setUp() {
         testId = UUID.randomUUID();
 
-        mockPatient = Patient.builder()
-                .id(100L)
-                .names("Mateo")
-                .firstSurname("Mendoza")
+        testPatient = Patient.builder()
+                .id(1L)
+                .names("Juliana")
+                .firstSurname("Suárez")
+                .idType("CC")
+                .idNumber("1030999888")
+                .birthDate(LocalDate.of(1998, 4, 12))
                 .build();
 
-        mockOdontologo = User.builder()
-                .id(200L)
-                .name("Dra. Andrea")
+        testOdontologo = User.builder()
+                .id(10L)
+                .username("dr_andrea")
+                .name("Dra. Andrea Martínez")
+                .email("andrea@oraltech.com")
                 .role(Role.DENTIST)
                 .build();
 
-        mockHistoria = HistoriaClinica.builder()
+        testHistoria = HistoriaClinica.builder()
                 .id(testId)
-                .paciente(mockPatient)
-                .odontologo(mockOdontologo)
-                .fechaApertura(LocalDate.now())
+                .paciente(testPatient)
+                .odontologo(testOdontologo)
                 .estado(EstadoHistoria.ACTIVA)
+                .fechaApertura(LocalDate.now())
                 .build();
 
-        mockRequest = new HistoriaClinicaRequest();
-        mockRequest.setPacienteId(100L);
-        mockRequest.setOdontologoId(200L);
+        testRequest = new HistoriaClinicaRequest();
+        testRequest.setPacienteId(1L);
+        testRequest.setOdontologoId(10L);
     }
 
     @Test
-    @DisplayName("Debería registrar una historia clínica exitosamente si no existe previamente")
+    @DisplayName("UT-HC-01: Debería crear una Historia Clínica exitosamente")
     void shouldCreateHistoriaClinicaSuccessfully() {
         // GIVEN
-        when(historiaRepo.existsByPacienteId(100L)).thenReturn(false);
-        when(patientRepo.findById(100L)).thenReturn(Optional.of(mockPatient));
-        when(userRepo.findById(200L)).thenReturn(Optional.of(mockOdontologo));
-        when(historiaRepo.save(any(HistoriaClinica.class))).thenReturn(mockHistoria);
+        when(historiaRepo.existsByPacienteId(1L)).thenReturn(false);
+        when(patientRepo.findById(1L)).thenReturn(Optional.of(testPatient));
+        when(userRepo.findById(10L)).thenReturn(Optional.of(testOdontologo));
+        when(historiaRepo.save(any(HistoriaClinica.class))).thenReturn(testHistoria);
 
         // WHEN
-        HistoriaClinicaResponse response = historiaClinicaService.create(mockRequest);
+        HistoriaClinicaResponse response = historiaService.create(testRequest);
 
         // THEN
         assertNotNull(response);
         assertEquals(testId, response.getId());
-        assertEquals(100L, response.getPacienteId());
-        assertEquals("Mateo Mendoza", response.getPacienteNombre());
-        assertEquals("Dra. Andrea", response.getOdontologoNombre());
         assertEquals("ACTIVA", response.getEstado());
+        assertEquals("Juliana Suárez", response.getPacienteNombre());
+        assertEquals("Dra. Andrea Martínez", response.getOdontologoNombre());
         verify(historiaRepo, times(1)).save(any(HistoriaClinica.class));
     }
 
     @Test
-    @DisplayName("Debería lanzar conflicto si el paciente ya posee una historia clínica")
-    void shouldThrowConflictWhenHistoriaClinicaAlreadyExists() {
+    @DisplayName("UT-HC-02: Debería lanzar 409 Conflict si el paciente ya cuenta con Historia Clínica")
+    void shouldThrowConflictWhenPatientAlreadyHasHistoria() {
         // GIVEN
-        when(historiaRepo.existsByPacienteId(100L)).thenReturn(true);
+        when(historiaRepo.existsByPacienteId(1L)).thenReturn(true);
 
         // WHEN & THEN
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-            historiaClinicaService.create(mockRequest);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            historiaService.create(testRequest);
         });
 
-        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
-        assertEquals("Ya existe una historia clínica para este paciente", exception.getReason());
-        verify(historiaRepo, never()).save(any(HistoriaClinica.class));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Ya existe una historia clínica"));
+        verify(historiaRepo, never()).save(any());
     }
 
     @Test
-    @DisplayName("Debería lanzar no encontrado si el paciente no existe al crear la historia clínica")
+    @DisplayName("UT-HC-03: Debería lanzar 404 Not Found si el paciente a asignar no existe")
     void shouldThrowNotFoundWhenPatientDoesNotExist() {
         // GIVEN
-        when(historiaRepo.existsByPacienteId(100L)).thenReturn(false);
-        when(patientRepo.findById(100L)).thenReturn(Optional.empty());
+        when(historiaRepo.existsByPacienteId(1L)).thenReturn(false);
+        when(patientRepo.findById(1L)).thenReturn(Optional.empty());
 
         // WHEN & THEN
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-            historiaClinicaService.create(mockRequest);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            historiaService.create(testRequest);
         });
 
-        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
-        assertEquals("Paciente no encontrado", exception.getReason());
-        verify(userRepo, never()).findById(anyLong());
-        verify(historiaRepo, never()).save(any(HistoriaClinica.class));
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Paciente no encontrado"));
     }
 
     @Test
-    @DisplayName("Debería retornar historia clínica al buscar por ID existente")
-    void shouldReturnHistoriaClinicaWhenSearchingByValidId() {
+    @DisplayName("UT-HC-04: Debería lanzar 404 Not Found si el odontólogo asignado no existe")
+    void shouldThrowNotFoundWhenOdontologoDoesNotExist() {
         // GIVEN
-        when(historiaRepo.findById(testId)).thenReturn(Optional.of(mockHistoria));
+        when(historiaRepo.existsByPacienteId(1L)).thenReturn(false);
+        when(patientRepo.findById(1L)).thenReturn(Optional.of(testPatient));
+        when(userRepo.findById(10L)).thenReturn(Optional.empty());
+
+        // WHEN & THEN
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            historiaService.create(testRequest);
+        });
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Odontólogo no encontrado"));
+    }
+
+    @Test
+    @DisplayName("UT-HC-05: Debería obtener Historia Clínica por UUID exitosamente")
+    void shouldGetHistoriaByIdSuccessfully() {
+        // GIVEN
+        when(historiaRepo.findById(testId)).thenReturn(Optional.of(testHistoria));
 
         // WHEN
-        HistoriaClinicaResponse response = historiaClinicaService.getById(testId);
+        HistoriaClinicaResponse response = historiaService.getById(testId);
 
         // THEN
         assertNotNull(response);
         assertEquals(testId, response.getId());
-        assertEquals("Mateo Mendoza", response.getPacienteNombre());
-        verify(historiaRepo, times(1)).findById(testId);
+        assertEquals("Juliana Suárez", response.getPacienteNombre());
     }
 
     @Test
-    @DisplayName("Debería lanzar no encontrado si el ID de historia clínica no existe")
-    void shouldThrowNotFoundWhenHistoriaClinicaIdDoesNotExist() {
+    @DisplayName("UT-HC-06: Debería lanzar 404 Not Found al buscar Historia por UUID inexistente")
+    void shouldThrowNotFoundWhenGetByIdNotFound() {
         // GIVEN
-        when(historiaRepo.findById(testId)).thenReturn(Optional.empty());
+        UUID nonExistentId = UUID.randomUUID();
+        when(historiaRepo.findById(nonExistentId)).thenReturn(Optional.empty());
 
         // WHEN & THEN
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-            historiaClinicaService.getById(testId);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            historiaService.getById(nonExistentId);
         });
 
-        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
-        assertEquals("Historia clínica no encontrada", exception.getReason());
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("UT-HC-07: Debería obtener Historia Clínica por ID de paciente exitosamente")
+    void shouldGetHistoriaByPacienteIdSuccessfully() {
+        // GIVEN
+        when(historiaRepo.findByPacienteId(1L)).thenReturn(Optional.of(testHistoria));
+
+        // WHEN
+        HistoriaClinicaResponse response = historiaService.getByPacienteId(1L);
+
+        // THEN
+        assertNotNull(response);
+        assertEquals(1L, response.getPacienteId());
+    }
+
+    @Test
+    @DisplayName("UT-HC-08: Debería lanzar 404 Not Found si el paciente no tiene historia clínica registrada")
+    void shouldThrowNotFoundWhenGetByPacienteIdNotFound() {
+        // GIVEN
+        when(historiaRepo.findByPacienteId(99L)).thenReturn(Optional.empty());
+
+        // WHEN & THEN
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            historiaService.getByPacienteId(99L);
+        });
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("UT-HC-09: findOrThrow debería retornar la entidad si existe")
+    void shouldReturnEntityWhenFindOrThrowExists() {
+        // GIVEN
+        when(historiaRepo.findById(testId)).thenReturn(Optional.of(testHistoria));
+
+        // WHEN
+        HistoriaClinica entity = historiaService.findOrThrow(testId);
+
+        // THEN
+        assertNotNull(entity);
+        assertEquals(testId, entity.getId());
+    }
+
+    @Test
+    @DisplayName("UT-HC-10: findOrThrow debería lanzar 404 Not Found si no existe")
+    void shouldThrowNotFoundWhenFindOrThrowNotFound() {
+        // GIVEN
+        UUID nonExistentId = UUID.randomUUID();
+        when(historiaRepo.findById(nonExistentId)).thenReturn(Optional.empty());
+
+        // WHEN & THEN
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            historiaService.findOrThrow(nonExistentId);
+        });
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
 }

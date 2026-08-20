@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -72,7 +73,7 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("Debería registrar un usuario exitosamente (Camino feliz)")
+    @DisplayName("UT-AUTH-01: Debería registrar un usuario exitosamente (Camino feliz)")
     void shouldRegisterUserSuccessfully() {
         // GIVEN
         when(userRepository.existsByUsername("dr_andrea")).thenReturn(false);
@@ -93,7 +94,7 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("Debería lanzar excepción si el nombre de usuario ya está en uso")
+    @DisplayName("UT-AUTH-02: Debería lanzar excepción si el nombre de usuario ya está en uso")
     void shouldThrowExceptionWhenUsernameAlreadyExists() {
         // GIVEN
         when(userRepository.existsByUsername("dr_andrea")).thenReturn(true);
@@ -108,7 +109,7 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("Debería lanzar excepción si el correo electrónico ya está en uso")
+    @DisplayName("UT-AUTH-03: Debería lanzar excepción si el correo electrónico ya está en uso")
     void shouldThrowExceptionWhenEmailAlreadyExists() {
         // GIVEN
         when(userRepository.existsByUsername("dr_andrea")).thenReturn(false);
@@ -124,7 +125,7 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("Debería autenticar un usuario exitosamente")
+    @DisplayName("UT-AUTH-04: Debería autenticar un usuario exitosamente")
     void shouldAuthenticateUserSuccessfully() {
         // GIVEN
         when(userRepository.findByUsername("dr_andrea")).thenReturn(Optional.of(testUser));
@@ -142,7 +143,7 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("Debería lanzar excepción si el usuario no existe en la base de datos al autenticar")
+    @DisplayName("UT-AUTH-05: Debería lanzar excepción si el usuario no existe en la base de datos al autenticar")
     void shouldThrowExceptionWhenUserNotFoundDuringAuthentication() {
         // GIVEN
         when(userRepository.findByUsername("dr_andrea")).thenReturn(Optional.empty());
@@ -153,5 +154,19 @@ class AuthServiceTest {
         });
 
         assertEquals("User not found", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("UT-AUTH-06: Debería propagar BadCredentialsException si las credenciales son incorrectas")
+    void shouldThrowExceptionWhenBadCredentials() {
+        // GIVEN
+        doThrow(new BadCredentialsException("Bad credentials"))
+                .when(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
+
+        // WHEN & THEN
+        assertThrows(BadCredentialsException.class, () -> {
+            authService.authenticate(authRequest);
+        });
+        verify(userRepository, never()).findByUsername(anyString());
     }
 }
