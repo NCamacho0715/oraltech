@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { logout, getCurrentUser } from '../services/authService';
-import { Stethoscope, LogOut, User as UserIcon, Calendar, ClipboardList, Users, Moon, Sun } from 'lucide-react';
+import { Stethoscope, LogOut, User as UserIcon, Calendar, ClipboardList, Users, Moon, Sun, DatabaseBackup } from 'lucide-react';
 import axios from 'axios';
 
 const Dashboard = () => {
@@ -138,6 +138,7 @@ const Dashboard = () => {
                     {[
                         { title: 'Gestión de Pacientes', desc: 'Registrar nuevos pacientes, ver fichas técnicas y acceder a sus historias clínicas.', icon: <Users size={32} />, color: '#0077b6', path: '/patients' },
                         { title: 'Agenda de Citas', desc: 'Organizar la disponibilidad del consultorio y programar citas con pacientes.', icon: <Calendar size={32} />, color: '#0077b6', path: '/appointments' },
+                        ...(user.role === 'ADMIN' ? [{ title: 'Respaldos', desc: 'Consultar, ejecutar y restaurar respaldos de la base de datos.', icon: <DatabaseBackup size={32} />, color: '#0077b6', path: '/backups' }] : []),
                     ].map((item, index) => (
                         <div key={index} className="auth-card" 
                         onClick={() => navigate(item.path)}

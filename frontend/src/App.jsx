@@ -7,6 +7,7 @@ import PatientForm from './views/PatientForm';
 import PatientDetail from './views/PatientDetail';
 import ClinicalHistory from './views/ClinicalHistory';
 import Appointments from './views/Appointments';
+import BackupManagement from './views/BackupManagement';
 import './index.css';
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/backups" element={<BackupManagement />} />
         <Route path="/appointments" element={<Appointments />} />
         <Route path="/patients" element={<PatientList />} />
         <Route path="/patients/new" element={<PatientForm />} />
@@ -27,5 +29,4 @@ function App() {
     </Router>
   );
 }
-
 export default App;
