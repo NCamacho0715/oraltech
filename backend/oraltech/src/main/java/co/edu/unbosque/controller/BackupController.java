@@ -5,37 +5,39 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/backups")
+@RequestMapping("/api/backup")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class BackupController {
 
     private final BackupService backupService;
 
-    @GetMapping
-    public ResponseEntity<?> list() throws Exception {
+    @GetMapping("/latest")
+    public ResponseEntity<Map<String, Object>> latest() {
+        return ResponseEntity.ok(backupService.getLatestInfo());
+    }
+
+    @GetMapping("/list")
+    public ResponseEntity<List<Map<String, Object>>> list() {
         return ResponseEntity.ok(backupService.listBackups());
     }
 
-    @GetMapping("/warnings")
-    public ResponseEntity<?> warnings() throws Exception {
-        return ResponseEntity.ok(backupService.warningsAndErrors());
-    }
-
-    @GetMapping("/latest")
-    public ResponseEntity<?> latest() throws Exception {
-        return ResponseEntity.ok(backupService.latest());
-    }
-
     @PostMapping("/run")
-    public ResponseEntity<?> run() throws Exception {
+    public ResponseEntity<Map<String, Object>> run() {
         return ResponseEntity.ok(backupService.runBackup());
     }
 
-    @PostMapping("/{filename}/restore")
-    public ResponseEntity<?> restore(@PathVariable String filename, @RequestBody Map<String, String> body) throws Exception {
-        return ResponseEntity.ok(backupService.restore(filename, body.get("confirmation")));
+    @GetMapping("/validate/{filename}")
+    public ResponseEntity<Map<String, Object>> validate(@PathVariable String filename) {
+        return ResponseEntity.ok(backupService.validateBackup(filename));
+    }
+
+    @PostMapping("/restore/{filename}")
+    public ResponseEntity<Map<String, Object>> restore(@PathVariable String filename) {
+        return ResponseEntity.ok(backupService.restore(filename));
     }
 }
