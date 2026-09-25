@@ -1,16 +1,22 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from "react";
 
-const SignatureCanvas = ({ onSave, clearOnSave = true, width = 400, height = 200, label = "Firma" }) => {
+const SignatureCanvas = ({
+  onSave,
+  clearOnSave = true,
+  width = 400,
+  height = 200,
+  label = "Firma",
+}) => {
   const canvasRef = useRef(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const isDrawing = useState(false);
   const [isEmpty, setIsEmpty] = useState(true);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#000';
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#000";
   }, []);
 
   const getCoordinates = (e) => {
@@ -20,43 +26,44 @@ const SignatureCanvas = ({ onSave, clearOnSave = true, width = 400, height = 200
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     return {
       x: clientX - rect.left,
-      y: clientY - rect.top
+      y: clientY - rect.top,
     };
   };
 
   const startDrawing = (e) => {
     const { x, y } = getCoordinates(e);
-    const ctx = canvasRef.current.getContext('2d');
+    const ctx = canvasRef.current.getContext("2d");
     ctx.beginPath();
     ctx.moveTo(x, y);
-    setIsDrawing(true);
+    isDrawing.current = true;
   };
 
   const draw = (e) => {
-    if (!isDrawing) return;
+    if (!isDrawing.current) return;
+
     const { x, y } = getCoordinates(e);
-    const ctx = canvasRef.current.getContext('2d');
+    const ctx = canvasRef.current.getContext("2d");
     ctx.lineTo(x, y);
     ctx.stroke();
     setIsEmpty(false);
   };
 
   const stopDrawing = () => {
-    setIsDrawing(false);
+    isDrawing.current = false;
   };
 
   const clear = () => {
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setIsEmpty(true);
   };
 
   const handleSave = () => {
     if (isEmpty) return;
-    const dataUrl = canvasRef.current.toDataURL('image/png');
+    const dataUrl = canvasRef.current.toDataURL("image/png");
     // Remove metadata prefix "data:image/png;base64,"
-    const base64 = dataUrl.split(',')[1];
+    const base64 = dataUrl.split(",")[1];
     onSave(base64);
     if (clearOnSave) clear();
   };
@@ -76,7 +83,7 @@ const SignatureCanvas = ({ onSave, clearOnSave = true, width = 400, height = 200
         onTouchMove={draw}
         onTouchEnd={stopDrawing}
         className="border border-dashed border-gray-300 cursor-crosshair bg-gray-50 rounded"
-        style={{ touchAction: 'none' }}
+        style={{ touchAction: "none" }}
       />
       <div className="flex justify-end gap-2">
         <button

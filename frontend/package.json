@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "axios": "^1.13.6",
+    "axios": "^1.20.0",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -29,6 +29,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "postcss": "^8.5.8",
+    "react-doctor": "^0.9.14",
     "tailwindcss": "^4.2.2",
     "vite": "^8.0.0"
   }
