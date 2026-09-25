@@ -14,15 +14,13 @@ const PatientDetail = () => {
     
 
     useEffect(() => {
-        loadPatientData();
-    }, [id]);
-
     const loadPatientData = async () => {
         try {
             setLoading(true);
+
             const patientData = await getPatientById(id);
             setPatient(patientData);
-            
+
             try {
                 await clinicaService.getHistoriaByPacienteId(id);
                 setHasHistoria(true);
@@ -38,6 +36,9 @@ const PatientDetail = () => {
             setLoading(false);
         }
     };
+
+    loadPatientData();
+}, [id]);
 
     const handleCreateHistoria = async () => {
         try {

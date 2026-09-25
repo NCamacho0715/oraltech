@@ -108,7 +108,7 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
           <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '15px', background: 'var(--surface)', fontSize: '0.95rem', boxShadow: 'var(--shadow)' }}>
               {data.length === 0 && <p style={{ padding: '2rem', color: 'var(--text-secondary)', textAlign: 'center', margin: 0 }}>No se han registrado hallazgos clínicos.</p>}
               {data.slice().reverse().map((e, idx) => (
-                  <div key={e.id || idx} style={{ 
+                  <div key={e.id} style={{ 
                       padding: '1rem 1.5rem', 
                       display: 'flex', 
                       justifyContent: 'space-between', 
