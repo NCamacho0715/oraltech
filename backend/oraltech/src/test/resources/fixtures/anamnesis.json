@@ -1,0 +1,5 @@
+{
+  "_comment": "Este objeto debe mantenerse idéntico al payload que construye frontend/src/views/sections/AnamnesisForm.jsx. Si agregas un campo en la UI, agrégalo aquí en el mismo commit.",
+  "motivoConsulta": "Dolor intenso en molar inferior derecho al masticar",
+  "estadoActual": "Paciente refiere dolor pulsátil de 3 días de evolución, exacerbado con alimentos fríos y calientes"
+}

@@ -1,0 +1,12 @@
+{
+  "_comment": "Este objeto debe mantenerse idéntico al payload que construye frontend/src/views/sections/AnalisisPulparForm.jsx. Si agregas un campo en la UI, agrégalo aquí en el mismo commit.",
+  "cuellosSensibles": true,
+  "endoRealizada": false,
+  "endoDefectuosa": false,
+  "abcesoFistula": false,
+  "lesionesPeriapicales": true,
+  "qxEndodontica": false,
+  "exposicionPulpar": false,
+  "cambioColor": true,
+  "observaciones": "Sensibilidad al frío en sector anterosuperior"
+}

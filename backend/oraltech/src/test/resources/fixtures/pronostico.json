@@ -1,0 +1,4 @@
+{
+  "_comment": "Este objeto debe mantenerse idéntico al payload que construye frontend/src/views/sections/DiagnosticoTab.jsx. Si agregas un campo en la UI, agrégalo aquí en el mismo commit.",
+  "descripcion": "Favorable a mediano plazo con adecuado control de placa y compromiso del paciente"
+}

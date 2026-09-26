@@ -1,0 +1,6 @@
+{
+  "_comment": "Este objeto debe mantenerse idéntico al payload que construye frontend/src/views/sections/DiagnosticoTab.jsx. Si agregas un campo en la UI, agrégalo aquí en el mismo commit.",
+  "descripcion": "Caries dental en diente 46 y gingivitis marginal",
+  "cie10": "K02.1",
+  "otros": "Sensibilidad cervical en premolares"
+}
