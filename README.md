@@ -18,7 +18,9 @@ git clone https://github.com/NCamacho0715/oraltech.git
 cd oraltech
 ```
 
-### 2. Crear la base de datos
+### 2. Crear la base de datos (Arranque desde cero)
+OralTech utiliza **Flyway** para gestionar y versionar el esquema de base de datos automáticamente al iniciar. Por ello, solo requiere crear una base de datos PostgreSQL vacía:
+
 ```sql
 CREATE DATABASE oraltech;
 CREATE DATABASE oraltech_test;
@@ -26,7 +28,22 @@ CREATE USER oraltech WITH PASSWORD 'oraltech';
 GRANT ALL PRIVILEGES ON DATABASE oraltech TO oraltech;
 GRANT ALL PRIVILEGES ON DATABASE oraltech_test TO oraltech;
 ```
-Ajustar `backend/oraltech/src/main/resources/application.properties` si su configuración difiere.
+> **Nota:** Al arrancar el backend por primera vez contra la base de datos vacía `oraltech`, Flyway aplicará automáticamente todas las migraciones estructuradas (`V20260412_1148` y posteriores), creando las tablas requeridas y dejando la base de datos lista para su uso sin necesidad de scripts manuales previos.
+> 
+> Ajuste las credenciales en [`backend/oraltech/src/main/resources/application.properties`](file:///backend/oraltech/src/main/resources/application.properties) si su configuración local difiere.
+
+### 3. Verificación automatizada de arranque en base limpia
+Para evaluar o reproducir el aprovisionamiento automático desde cero:
+- **En Linux / macOS / Git Bash:**
+  ```bash
+  chmod +x backend/verify-flyway-clean.sh
+  ./backend/verify-flyway-clean.sh
+  ```
+- **En Windows PowerShell:**
+  ```powershell
+  .\backend\verify-flyway-clean.ps1
+  ```
+Este script crea una base de datos limpia temporal, inicia Spring Boot, valida la ejecución exitosa de todas las migraciones de Flyway, valida las tablas creadas y comprueba la disponibilidad del servicio respondiendo en `/api/auth/login`.
 
 ## Backend (Spring Boot)
 
