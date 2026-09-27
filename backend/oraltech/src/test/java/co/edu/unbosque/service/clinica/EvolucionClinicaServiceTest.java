@@ -258,4 +258,34 @@ class EvolucionClinicaServiceTest {
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
         verify(repo, never()).save(any());
     }
+
+    @Test
+    @DisplayName("UT-EVO-12 (HU-1): Dos odontólogos distintos leen y registran evolución sobre la misma historia")
+    void shouldAllowTwoDifferentOdontologosToReadAndWriteEvoluciones() {
+        // GIVEN: historia aperturada por la Dra. Andrea; escriben otros dos profesionales.
+        // El servicio nunca consulta quién aperturó: no hay filtro por odontólogo.
+        historiaActiva.setOdontologo(co.edu.unbosque.entity.User.builder()
+                .id(10L)
+                .username("dr_andrea")
+                .name("Dra. Andrea Martínez")
+                .role(co.edu.unbosque.entity.User.Role.DENTIST)
+                .build());
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        doNothing().when(guard).requireActiva(historiaActiva);
+        doNothing().when(guard).validateSignatureSize(any(), any());
+        when(repo.save(any(EvolucionClinica.class))).thenReturn(entity);
+        when(repo.findAllByHistoriaClinicaIdOrderByFechaAsc(historiaId))
+                .thenReturn(List.of(entity, entity));
+
+        // WHEN: ambos profesionales escriben y luego leen
+        EvolucionClinicaResponse primero = service.create(historiaId, request);
+        EvolucionClinicaResponse segundo = service.create(historiaId, request);
+        List<EvolucionClinicaListResponse> lectura = service.list(historiaId);
+
+        // THEN: acceso compartido, sin restricción por odontólogo de apertura
+        assertNotNull(primero);
+        assertNotNull(segundo);
+        assertEquals(2, lectura.size());
+        verify(repo, times(2)).save(any(EvolucionClinica.class));
+    }
 }

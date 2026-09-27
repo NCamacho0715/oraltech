@@ -265,7 +265,7 @@ const ClinicalHistory = () => {
               <strong style={{ color: "var(--text-main)" }}>
                 {fechaAperturaTexto}
               </strong>
-              {"  ·  "}Odontólogo:{" "}
+              {"  ·  "}Aperturada por:{" "}
               <strong style={{ color: "var(--text-main)" }}>
                 {historia.odontologoNombre || "—"}
               </strong>

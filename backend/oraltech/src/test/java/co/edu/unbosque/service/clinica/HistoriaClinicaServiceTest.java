@@ -291,4 +291,21 @@ class HistoriaClinicaServiceTest {
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
         verify(historiaRepo, never()).save(any());
     }
+
+    @Test
+    @DisplayName("UT-HC-13 (HU-1): Otro odontólogo puede leer una historia que no aperturó")
+    void shouldAllowDifferentOdontologoToReadHistoria() {
+        // GIVEN: la historia la aperturó "dr_andrea", pero quien consulta es "dr_otro"
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("dr_otro", null, java.util.List.of()));
+        when(historiaRepo.findByPacienteId(1L)).thenReturn(Optional.of(testHistoria));
+
+        // WHEN
+        HistoriaClinicaResponse response = historiaService.getByPacienteId(1L);
+
+        // THEN: lectura compartida, sin filtro por odontólogo de apertura
+        assertNotNull(response);
+        assertEquals("Dra. Andrea Martínez", response.getOdontologoNombre());
+        verify(userRepo, never()).findByUsername(any());
+    }
 }
