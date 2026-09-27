@@ -11,7 +11,7 @@ import {
   ListChecks,
 } from "lucide-react";
 import clinicaService from "../services/clinicaService";
-import { parseFechaLocal } from "../utils/fechas";
+import { parseFechaLocal, formatFechaCorta } from "../utils/fechas";
 import AnamnesisForm from "./sections/AnamnesisForm";
 import AntecedentesForm from "./sections/AntecedentesForm";
 import ExamenClinicoForm from "./sections/ExamenClinicoForm";
@@ -163,6 +163,11 @@ const ClinicalHistory = () => {
 
   const isClosed = historia.estado === "CERRADA";
 
+  // HU-5: fecha de apertura visible con respaldo a createdAt para registros
+  // legacy; formatFechaCorta devuelve "" si es inválida (nunca "Invalid Date").
+  const fechaAperturaTexto =
+    formatFechaCorta(historia.fechaApertura || historia.createdAt) || "—";
+
   const tabs = [
     { id: "anamnesis", label: "Anamnesis", icon: ClipboardList },
     { id: "antecedentes", label: "Antecedentes", icon: History },
@@ -244,6 +249,26 @@ const ClinicalHistory = () => {
             </h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem" }}>
               ID Historia: {historia.id}
+            </p>
+            <p
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "0.95rem",
+                marginTop: "0.3rem",
+              }}
+            >
+              Estado:{" "}
+              <strong style={{ color: "var(--text-main)" }}>
+                {historia.estado || "—"}
+              </strong>
+              {"  ·  "}Apertura:{" "}
+              <strong style={{ color: "var(--text-main)" }}>
+                {fechaAperturaTexto}
+              </strong>
+              {"  ·  "}Odontólogo:{" "}
+              <strong style={{ color: "var(--text-main)" }}>
+                {historia.odontologoNombre || "—"}
+              </strong>
             </p>
             <p
               style={{

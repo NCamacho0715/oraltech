@@ -12,10 +12,11 @@ const getAuthHeader = () => {
 
 const clinicaService = {
   // Historia Clinica
+  // El odontólogo de apertura lo resuelve el backend desde el JWT (nunca del body).
   createHistoria: (patientId) =>
     axios.post(
       `${API_URL}/historias`,
-      { pacienteId: patientId, odontologoId: 1 },
+      { pacienteId: patientId },
       { headers: getAuthHeader() },
     ),
 

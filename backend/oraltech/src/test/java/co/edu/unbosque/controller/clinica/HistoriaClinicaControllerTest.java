@@ -73,12 +73,25 @@ class HistoriaClinicaControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/historias/paciente/{pacienteId} → 200 OK")
+    @DisplayName("GET /api/historias/paciente/{pacienteId} → 200 OK con fechaApertura (HU-5)")
     void shouldGetHistoriaByPacienteId() throws Exception {
-        when(service.getByPacienteId(1L)).thenReturn(mock(HistoriaClinicaResponse.class));
+        HistoriaClinicaResponse resp = HistoriaClinicaResponse.builder()
+                .id(HC_ID)
+                .pacienteId(1L)
+                .pacienteNombre("Juliana Suárez")
+                .odontologoId(10L)
+                .odontologoNombre("Dra. Andrea Martínez")
+                .fechaApertura(java.time.LocalDate.now())
+                .estado("ACTIVA")
+                .build();
+        when(service.getByPacienteId(1L)).thenReturn(resp);
 
         mockMvc.perform(get("/api/historias/paciente/1"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fechaApertura").exists())
+                .andExpect(jsonPath("$.fechaApertura").isNotEmpty())
+                .andExpect(jsonPath("$.odontologoNombre").value("Dra. Andrea Martínez"))
+                .andExpect(jsonPath("$.estado").value("ACTIVA"));
     }
 
     @Test
