@@ -4,6 +4,7 @@ import co.edu.unbosque.dto.clinica.ConsentimientoRequest;
 import co.edu.unbosque.dto.clinica.ConsentimientoResponse;
 import co.edu.unbosque.entity.clinica.Consentimiento;
 import co.edu.unbosque.entity.clinica.HistoriaClinica;
+import co.edu.unbosque.entity.clinica.SeccionHistoria;
 import co.edu.unbosque.repository.clinica.ConsentimientoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -20,6 +22,7 @@ public class ConsentimientoService {
     private final ConsentimientoRepository repo;
     private final HistoriaClinicaService historiaService;
     private final HistoriaClinicaGuard guard;
+    private final DesbloqueoService desbloqueoService;
 
     @Transactional
     public ConsentimientoResponse upsert(UUID historiaId, ConsentimientoRequest req) {
@@ -32,7 +35,14 @@ public class ConsentimientoService {
         guard.validateSignatureSize(req.getFirmaOdontologo(), "firmaOdontologo");
         guard.validateSignatureSize(req.getFirmaTestigo(), "firmaTestigo");
 
-        Consentimiento c = repo.findByHistoriaClinicaId(historiaId)
+        boolean desbloqueado = desbloqueoService.consumirSiVigente(historiaId, SeccionHistoria.CONSENTIMIENTO);
+        Optional<Consentimiento> existente = repo.findByHistoriaClinicaId(historiaId);
+        if (existente.isPresent() && !desbloqueado) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    SeccionHistoria.CONSENTIMIENTO.mensajeBloqueo());
+        }
+
+        Consentimiento c = existente
                 .orElseGet(() -> {
                     Consentimiento newC = new Consentimiento();
                     newC.setHistoriaClinica(historia);

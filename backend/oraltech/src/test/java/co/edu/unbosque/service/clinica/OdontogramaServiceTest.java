@@ -44,6 +44,9 @@ class OdontogramaServiceTest {
     @Mock
     private HistoriaClinicaGuard guard;
 
+    @Mock
+    private DesbloqueoService desbloqueoService;
+
     @InjectMocks
     private OdontogramaService service;
 
@@ -188,50 +191,56 @@ class OdontogramaServiceTest {
         assertEquals("CARIES", list.get(0).getTipoEvento());
     }
 
+    // HU-2: sin delete() de registros (inmutables; solo cambia estado vía evolución).
+
     @Test
-    @DisplayName("UT-ODON-08: Debería eliminar registro del odontograma exitosamente")
-    void shouldDeleteRegistroSuccessfully() {
+    @DisplayName("UT-ODON-08 (HU-2): Debería devolver 409 al agregar hallazgo con odontograma bloqueado")
+    void shouldReturn409WhenOdontogramaBlocked() {
         when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
         doNothing().when(guard).requireActiva(historiaActiva);
-        when(repo.findById(100L)).thenReturn(Optional.of(entity));
+        when(repo.existsByHistoriaClinicaId(historiaId)).thenReturn(true);
+        when(evolucionRepo.existsByHistoriaClinicaId(historiaId)).thenReturn(true);
+        when(desbloqueoService.consumirSiVigente(historiaId,
+                co.edu.unbosque.entity.clinica.SeccionHistoria.ODONTOGRAMA)).thenReturn(false);
 
-        service.delete(historiaId, 100L);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            service.create(historiaId, request);
+        });
 
-        verify(repo, times(1)).delete(entity);
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(repo, never()).save(any());
     }
 
     @Test
-    @DisplayName("UT-ODON-09: Debería lanzar 400 si el registro no pertenece a la historia especificada")
-    void shouldThrowBadRequestWhenRegistroBelongsToOtherHistoria() {
-        HistoriaClinica otherHistoria = HistoriaClinica.builder().id(UUID.randomUUID()).build();
-        OdontogramaRegistro otherEntity = OdontogramaRegistro.builder()
-                .id(100L)
-                .historiaClinica(otherHistoria)
-                .build();
-
+    @DisplayName("UT-ODON-09 (HU-2): Desbloqueo vigente debería permitir un hallazgo")
+    void shouldAllowOneHallazgoWithVigenteDesbloqueo() {
         when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
         doNothing().when(guard).requireActiva(historiaActiva);
-        when(repo.findById(100L)).thenReturn(Optional.of(otherEntity));
+        when(repo.existsByHistoriaClinicaId(historiaId)).thenReturn(true);
+        when(evolucionRepo.existsByHistoriaClinicaId(historiaId)).thenReturn(true);
+        when(desbloqueoService.consumirSiVigente(historiaId,
+                co.edu.unbosque.entity.clinica.SeccionHistoria.ODONTOGRAMA)).thenReturn(true);
+        when(repo.save(any(OdontogramaRegistro.class))).thenReturn(entity);
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
-            service.delete(historiaId, 100L);
-        });
+        OdontogramaRegistroResponse response = service.create(historiaId, request);
 
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("no pertenece a esta historia"));
+        assertNotNull(response);
+        verify(repo, times(1)).save(any(OdontogramaRegistro.class));
     }
 
     @Test
-    @DisplayName("UT-ODON-10: Debería lanzar 404 si el registro a eliminar no existe")
-    void shouldThrowNotFoundWhenRegistroDoesNotExist() {
+    @DisplayName("UT-ODON-10 (HU-2): Llenado inicial libre mientras no haya evoluciones")
+    void shouldAllowFreeFillWithoutEvoluciones() {
         when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
         doNothing().when(guard).requireActiva(historiaActiva);
-        when(repo.findById(999L)).thenReturn(Optional.empty());
+        when(repo.existsByHistoriaClinicaId(historiaId)).thenReturn(true);
+        when(evolucionRepo.existsByHistoriaClinicaId(historiaId)).thenReturn(false);
+        when(repo.save(any(OdontogramaRegistro.class))).thenReturn(entity);
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
-            service.delete(historiaId, 999L);
-        });
+        OdontogramaRegistroResponse response = service.create(historiaId, request);
 
-        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertNotNull(response);
+        verify(desbloqueoService, never()).consumirSiVigente(any(), any());
+        verify(repo, times(1)).save(any(OdontogramaRegistro.class));
     }
 }

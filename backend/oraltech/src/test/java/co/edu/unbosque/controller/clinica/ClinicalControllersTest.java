@@ -240,11 +240,7 @@ class ClinicalControllersTest {
         mockMvc.perform(get("/api/historias/" + HC + "/odontograma")).andExpect(status().isOk());
     }
 
-    @Test @DisplayName("DELETE /odontograma/{id} → 204")
-    void deleteOdontograma() throws Exception {
-        doNothing().when(odontogramaService).delete(HC, 1L);
-        mockMvc.perform(delete("/api/historias/" + HC + "/odontograma/1")).andExpect(status().isNoContent());
-    }
+    // HU-2: sin DELETE de registros (inmutables; solo cambia estado vía evolución).
 
     // ── OdontogramaProtesis ───────────────────────────────────────────
 

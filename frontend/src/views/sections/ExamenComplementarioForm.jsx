@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import clinicaService from '../../services/clinicaService';
+import DesbloqueoModal from '../../components/clinica/DesbloqueoModal';
+import { useBloqueoSeccion } from '../../hooks/useBloqueoSeccion';
 import { formatFechaCorta } from '../../utils/fechas';
 import { Save, CheckCircle2, Lock } from 'lucide-react';
 
@@ -42,7 +44,7 @@ const CheckboxRow = ({ id, label, checked, locked, onToggle, textField, textValu
 const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
   const [data, setData] = useState(initialData);
   const [meta, setMeta] = useState({ createdAt: null, createdBy: '' });
-  const [bloqueado, setBloqueado] = useState(false);
+  const bloqueo = useBloqueoSeccion('complementario');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -65,7 +67,7 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
             otrosTexto: res.data.otrosTexto || ''
           });
           setMeta({ createdAt: res.data.createdAt, createdBy: res.data.createdBy });
-          setBloqueado(true);
+          bloqueo.marcarRegistrado(res.data);
         }
       } catch (err) {
         // 404 = "aún no registrado": estado vacío editable, no error.
@@ -76,6 +78,7 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
       }
     };
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historiaId]);
 
   const validate = () => {
@@ -100,14 +103,17 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
     setSaving(true);
     setSaveError('');
     try {
-      await clinicaService.upsertExamenComplementario(historiaId, data);
-      setBloqueado(true);
+      const res = await clinicaService.upsertExamenComplementario(historiaId, data);
+      if (res.data) {
+        setMeta({ createdAt: res.data.createdAt || null, createdBy: res.data.createdBy || '' });
+      }
+      bloqueo.marcarGuardado();
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
       if (err?.response?.status === 409) {
         // Carrera o reintento: el backend ya lo bloqueó; reflejarlo sin falso "Guardado".
-        setBloqueado(true);
+        bloqueo.marcarConflicto();
       }
       setSaveError(err?.response?.data?.message || err?.message || 'Error al guardar exámenes complementarios');
     } finally {
@@ -117,7 +123,8 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
 
   if (loading) return <div className="text-center p-5">Cargando Exámenes Complementarios...</div>;
 
-  const locked = readOnly || bloqueado;
+  const locked = readOnly || bloqueo.bloqueado;
+  const showUnlockBtn = !readOnly && bloqueo.bloqueado && bloqueo.isAdmin;
   const handleToggle = (id, checked) => setData(prev => ({ ...prev, [id]: checked }));
   const handleText = (field, value) => setData(prev => ({ ...prev, [field]: value }));
 
@@ -142,15 +149,31 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
             </button>
           </div>
         ) : (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            <Lock size={16} /> Registro bloqueado
-            {meta.createdAt && ` · ${formatFechaCorta(meta.createdAt)}`}
-            {meta.createdBy && ` · ${meta.createdBy}`}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              <Lock size={16} /> Registro bloqueado
+              {meta.createdAt && ` · ${formatFechaCorta(meta.createdAt)}`}
+              {meta.createdBy && ` · ${meta.createdBy}`}
+            </span>
+            {showUnlockBtn && (
+              <button
+                onClick={() => bloqueo.setShowUnlock(true)}
+                style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
+              >
+                Desbloquear (ADMIN)
+              </button>
+            )}
+          </div>
         )}
       </div>
 
-      {bloqueado && saveError && (
+      {bloqueo.desbloqueo && (
+        <div style={{ border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+          Desbloqueada por {bloqueo.desbloqueo.por}: {bloqueo.desbloqueo.motivo}
+        </div>
+      )}
+
+      {bloqueo.bloqueado && saveError && (
         <div style={{ border: '1px solid var(--accent)', background: 'rgba(230, 57, 70, 0.08)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
           {saveError}
         </div>
@@ -171,6 +194,15 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
         <CheckboxRow id="otros" label="Otros" checked={data.otros} locked={locked} onToggle={handleToggle}
           textField="otrosTexto" textValue={data.otrosTexto} textPlaceholder="Descripción (obligatoria)" onTextChange={handleText} />
       </div>
+
+      <DesbloqueoModal
+        abierto={bloqueo.showUnlock}
+        seccionNombre="Exámenes Complementarios"
+        onConfirm={(motivo) => bloqueo.solicitar(historiaId, motivo)}
+        onCancel={() => bloqueo.setShowUnlock(false)}
+        error={bloqueo.unlockError}
+        enviando={bloqueo.unlocking}
+      />
     </div>
   );
 };

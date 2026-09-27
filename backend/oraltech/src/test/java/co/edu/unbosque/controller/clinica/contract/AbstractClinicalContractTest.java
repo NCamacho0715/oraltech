@@ -80,6 +80,7 @@ import static org.mockito.Mockito.*;
     AnalisisPeriodontalService.class,
     AnalisisPulparService.class,
     ConsentimientoService.class,
+    DesbloqueoService.class,
     DiagnosticoService.class,
     EvolucionClinicaService.class,
     ExamenClinicoService.class,
@@ -114,6 +115,7 @@ public abstract class AbstractClinicalContractTest {
     @MockBean protected AnalisisPulparRepository analisisPulparRepository;
     @MockBean protected AnalisisPeriodontalRepository analisisPeriodontalRepository;
     @MockBean protected ConsentimientoRepository consentimientoRepository;
+    @MockBean protected DesbloqueoRepository desbloqueoRepository;
 
     // Repositorios y componentes del Core necesarios para HistoriaClinica y Usuarios
     @MockBean protected HistoriaClinicaRepository historiaClinicaRepository;

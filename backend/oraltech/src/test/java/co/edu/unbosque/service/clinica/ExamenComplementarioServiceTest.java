@@ -35,6 +35,9 @@ class ExamenComplementarioServiceTest {
     @Mock
     private HistoriaClinicaGuard guard;
 
+    @Mock
+    private DesbloqueoService desbloqueoService;
+
     @InjectMocks
     private ExamenComplementarioService service;
 

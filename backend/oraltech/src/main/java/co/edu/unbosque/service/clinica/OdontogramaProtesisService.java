@@ -3,6 +3,7 @@ package co.edu.unbosque.service.clinica;
 import co.edu.unbosque.dto.clinica.OdontogramaProtesisRequest;
 import co.edu.unbosque.dto.clinica.OdontogramaProtesisResponse;
 import co.edu.unbosque.entity.clinica.HistoriaClinica;
+import co.edu.unbosque.entity.clinica.SeccionHistoria;
 import co.edu.unbosque.entity.clinica.OdontogramaProtesis;
 import co.edu.unbosque.repository.clinica.OdontogramaProtesisRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -20,6 +22,7 @@ public class OdontogramaProtesisService {
     private final OdontogramaProtesisRepository repo;
     private final HistoriaClinicaService historiaService;
     private final HistoriaClinicaGuard guard;
+    private final DesbloqueoService desbloqueoService;
 
     @Transactional
     public OdontogramaProtesisResponse upsert(UUID historiaId, OdontogramaProtesisRequest req) {
@@ -27,7 +30,14 @@ public class OdontogramaProtesisService {
         guard.requireActiva(historia);
         guard.registrarActividad(historia);
 
-        OdontogramaProtesis op = repo.findByHistoriaClinicaId(historiaId)
+        boolean desbloqueado = desbloqueoService.consumirSiVigente(historiaId, SeccionHistoria.PROTESIS);
+        Optional<OdontogramaProtesis> existente = repo.findByHistoriaClinicaId(historiaId);
+        if (existente.isPresent() && !desbloqueado) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    SeccionHistoria.PROTESIS.mensajeBloqueo());
+        }
+
+        OdontogramaProtesis op = existente
                 .orElseGet(() -> {
                     OdontogramaProtesis o = new OdontogramaProtesis();
                     o.setHistoriaClinica(historia);

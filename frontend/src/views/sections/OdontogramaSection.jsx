@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import Odontogram from '../../components/clinica/Odontogram';
+import DesbloqueoModal from '../../components/clinica/DesbloqueoModal';
+import { useBloqueoSeccion } from '../../hooks/useBloqueoSeccion';
 import clinicaService from '../../services/clinicaService';
 import { formatFechaCorta } from '../../utils/fechas';
-import { Trash2, AlertCircle, Save, CheckCircle2 } from 'lucide-react';
+import { Lock, Save, CheckCircle2 } from 'lucide-react';
 
 const OdontogramaSection = ({ historiaId, readOnly }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const bloqueo = useBloqueoSeccion('protesis');
+  const bloqueoOdon = useBloqueoSeccion('odontograma');
+  const [protesisMeta, setProtesisMeta] = useState({ createdAt: null, createdBy: '' });
   const [protesis, setProtesis] = useState({
     totalSuperior: false,
     totalInferior: false,
@@ -22,6 +26,8 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
+  // Gracia de llenado inicial: el odontograma se bloquea al haber evoluciones.
+  const [tieneEvoluciones, setTieneEvoluciones] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -38,7 +44,19 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
   const loadData = async () => {
     try {
       const res = await clinicaService.listOdontograma(historiaId);
-      setData(Array.isArray(res.data) ? res.data : []);
+      const lista = Array.isArray(res.data) ? res.data : [];
+      setData(lista);
+      // HU-2: con hallazgos Y evoluciones (atención en curso) la sección se bloquea.
+      // Sin evoluciones es llenado inicial libre. Si no se puede verificar,
+      // no se bloquea preventivo: el backend decide con 409.
+      try {
+        const evo = await clinicaService.listEvoluciones(historiaId);
+        const hayEvo = Array.isArray(evo.data) && evo.data.length > 0;
+        setTieneEvoluciones(hayEvo);
+        if (lista.length > 0 && hayEvo) bloqueoOdon.bloquear();
+      } catch {
+        setTieneEvoluciones(false);
+      }
     } catch (err) {
       setLoadError(err?.response?.data?.message || err?.message || 'No se pudo cargar el odontograma');
     } finally {
@@ -49,7 +67,11 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
   const loadProtesis = async () => {
     try {
       const res = await clinicaService.getProtesis(historiaId);
-      if (res.data) setProtesis(res.data);
+      if (res.data) {
+        setProtesis(res.data);
+        setProtesisMeta({ createdAt: res.data.createdAt || null, createdBy: res.data.createdBy || '' });
+        bloqueo.marcarRegistrado(res.data);
+      }
     } catch (err) {
       // 404 = "aún no registrada": estado vacío, no error.
       if (err?.response?.status === 404) return;
@@ -62,21 +84,14 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
     try {
       const response = await clinicaService.createOdontogramaRegistro(historiaId, event);
       setData(prev => [...prev, response.data]);
+      // Con atención en curso cada hallazgo consume el desbloqueo (un solo uso).
+      // En llenado inicial se sigue editable.
+      if (tieneEvoluciones) bloqueoOdon.marcarGuardado();
     } catch (err) {
+      if (err?.response?.status === 409) {
+        bloqueoOdon.marcarConflicto();
+      }
       setActionError(err?.response?.data?.message || err?.message || 'Error de datos');
-    }
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteConfirm) return;
-    setActionError('');
-    try {
-      await clinicaService.deleteOdontogramaRegistro(historiaId, deleteConfirm);
-      setData(prev => prev.filter(r => r.id !== deleteConfirm));
-      setDeleteConfirm(null);
-    } catch (err) {
-      setDeleteConfirm(null);
-      setActionError(err?.response?.data?.message || err?.message || 'No se pudo eliminar el hallazgo');
     }
   };
 
@@ -84,14 +99,28 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
     setSavingProtesis(true);
     setActionError('');
     try {
-      await clinicaService.upsertProtesis(historiaId, protesis);
+      const res = await clinicaService.upsertProtesis(historiaId, protesis);
+      if (res.data) {
+        setProtesis(res.data);
+        setProtesisMeta({ createdAt: res.data.createdAt || null, createdBy: res.data.createdBy || '' });
+      }
+      bloqueo.marcarGuardado();
       setShowSuccess(true);
     } catch (err) {
+      if (err?.response?.status === 409) {
+        // La prótesis ya estaba registrada: reflejar el bloqueo sin falso "Guardado".
+        bloqueo.marcarConflicto();
+      }
       setActionError(err?.response?.data?.message || err?.message || 'Error al guardar prótesis');
     } finally {
       setSavingProtesis(false);
     }
   };
+
+  const locked = readOnly || bloqueo.bloqueado;
+  const showUnlockBtn = !readOnly && bloqueo.bloqueado && bloqueo.isAdmin;
+  const lockedOdon = readOnly || bloqueoOdon.bloqueado;
+  const showUnlockOdonBtn = !readOnly && bloqueoOdon.bloqueado && bloqueoOdon.isAdmin;
 
   if (loading) return <div className="text-center p-10">Cargando Odontograma...</div>;
 
@@ -99,15 +128,39 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '2rem' }}>
           <h3 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>Odontograma</h3>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic', background: 'var(--secondary-soft)', padding: '0.3rem 0.8rem', borderRadius: '999px' }}>
-              Haz clic en una cara de un diente para registrar un hallazgo
-          </span>
+          {lockedOdon ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', fontStyle: 'italic', background: 'var(--secondary-soft)', padding: '0.3rem 0.8rem', borderRadius: '999px' }}>
+                <Lock size={14} /> Registro bloqueado
+              </span>
+              {showUnlockOdonBtn && (
+                <button
+                  onClick={() => bloqueoOdon.setShowUnlock(true)}
+                  style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
+                >
+                  Desbloquear (ADMIN)
+                </button>
+              )}
+            </div>
+          ) : (
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic', background: 'var(--secondary-soft)', padding: '0.3rem 0.8rem', borderRadius: '999px' }}>
+              {data.length > 0
+                ? 'Llenado inicial: se bloqueará al registrar evoluciones'
+                : 'Haz clic en una cara de un diente para registrar un hallazgo'}
+            </span>
+          )}
       </div>
+
+      {bloqueoOdon.desbloqueo && !bloqueoOdon.bloqueado && (
+        <div style={{ border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+          Desbloqueada por {bloqueoOdon.desbloqueo.por}: {bloqueoOdon.desbloqueo.motivo} (permite registrar un hallazgo)
+        </div>
+      )}
       
       <Odontogram 
           data={data} 
           onEventAdd={handleApplyEvent} 
-          readOnly={readOnly} 
+          readOnly={lockedOdon} 
       />
 
       {/* Historial de Hallazgos */}
@@ -135,11 +188,6 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
                           <span style={{ fontWeight: 700 }}>Diente {e.numeroDiente} ({e.cara}) — <span style={{ color: 'var(--primary)' }}>{e.observacion || e.tipoEvento}</span></span>
                           <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{e.fecha ? formatFechaCorta(e.fecha) || 'Añadido hoy' : 'Añadido hoy'}</span>
                       </div>
-                      {!readOnly && (
-                          <button onClick={() => setDeleteConfirm(e.id)} style={{ padding: '0.5rem', background: 'transparent', color: 'var(--accent)', borderRadius: '8px' }}>
-                              <Trash2 size={18} />
-                          </button>
-                      )}
                   </div>
               ))}
           </div>
@@ -149,15 +197,15 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
       <div style={{ marginTop: '3rem', background: 'var(--surface)', padding: '2rem', borderRadius: '15px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)', position: 'relative' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
           <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)', margin: 0 }}>Información Adicional de Prótesis</h4>
-          {!readOnly && (
+          {!locked ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               {showSuccess && (
                 <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, animation: 'fadeIn 0.3s' }}>
                   <CheckCircle2 size={18} /> Guardado exitoso
                 </span>
               )}
-              <button 
-                onClick={handleSaveProtesis} 
+              <button
+                onClick={handleSaveProtesis}
                 disabled={savingProtesis}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px var(--primary-soft)', transition: 'all 0.3s', opacity: savingProtesis ? 0.7 : 1 }}
                 onMouseEnter={e => !savingProtesis && (e.currentTarget.style.transform = 'translateY(-2px)')}
@@ -166,8 +214,30 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
                 <Save size={18} /> {savingProtesis ? 'Guardando...' : 'Guardar Prótesis'}
               </button>
             </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                <Lock size={16} /> Registro bloqueado
+                {protesisMeta.createdAt && ` · ${formatFechaCorta(protesisMeta.createdAt)}`}
+                {protesisMeta.createdBy && ` · ${protesisMeta.createdBy}`}
+              </span>
+              {showUnlockBtn && (
+                <button
+                  onClick={() => bloqueo.setShowUnlock(true)}
+                  style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
+                >
+                  Desbloquear (ADMIN)
+                </button>
+              )}
+            </div>
           )}
         </div>
+
+        {bloqueo.desbloqueo && (
+          <div style={{ border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            Desbloqueada por {bloqueo.desbloqueo.por}: {bloqueo.desbloqueo.motivo}
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
           {/* Arco Superior */}
@@ -179,12 +249,12 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
                 { id: 'parcialAcriSuperior', label: 'Prótesis parcial acrílica superior' },
                 { id: 'removibleMetSuperior', label: 'Prótesis removible metálica superior' }
               ].map(item => (
-                <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: readOnly ? 'default' : 'pointer', fontSize: '0.95rem' }}>
+                <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: locked ? 'default' : 'pointer', fontSize: '0.95rem' }}>
                   <input 
                     type="checkbox" 
                     checked={protesis[item.id] || false} 
                     onChange={e => setProtesis({...protesis, [item.id]: e.target.checked})} 
-                    disabled={readOnly} 
+                    disabled={locked} 
                     style={{ width: '20px', height: '20px', accentColor: 'var(--primary)', cursor: 'pointer' }} 
                   />
                   <span>{item.label}</span>
@@ -195,7 +265,7 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
                 <textarea 
                   value={protesis.fijaSuperior || ''} 
                   onChange={e => setProtesis({...protesis, fijaSuperior: e.target.value})}
-                  disabled={readOnly}
+                  disabled={locked}
                   placeholder="Detalles sobre puentes o coronas fijas..."
                   style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-main)', minHeight: '80px', resize: 'none' }}
                 />
@@ -212,12 +282,12 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
                 { id: 'parcialAcriInferior', label: 'Prótesis parcial acrílica inferior' },
                 { id: 'removibleMetInferior', label: 'Prótesis removible metálica inferior' }
               ].map(item => (
-                <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: readOnly ? 'default' : 'pointer', fontSize: '0.95rem' }}>
+                <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: locked ? 'default' : 'pointer', fontSize: '0.95rem' }}>
                   <input 
                     type="checkbox" 
                     checked={protesis[item.id] || false} 
                     onChange={e => setProtesis({...protesis, [item.id]: e.target.checked})} 
-                    disabled={readOnly} 
+                    disabled={locked} 
                     style={{ width: '20px', height: '20px', accentColor: 'var(--accent)', cursor: 'pointer' }} 
                   />
                   <span>{item.label}</span>
@@ -228,7 +298,7 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
                 <textarea 
                   value={protesis.fijaInferior || ''} 
                   onChange={e => setProtesis({...protesis, fijaInferior: e.target.value})}
-                  disabled={readOnly}
+                  disabled={locked}
                   placeholder="Detalles sobre puentes o coronas fijas..."
                   style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-main)', minHeight: '80px', resize: 'none' }}
                 />
@@ -238,20 +308,23 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
         </div>
       </div>
 
-      {/* MODAL DE ELIMINACIÓN */}
-      {deleteConfirm && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
-          <div style={{ background: 'var(--surface)', padding: '2.5rem', borderRadius: '20px', width: '400px', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', textAlign: 'center', animation: 'fadeIn 0.2s' }}>
-            <div style={{ color: 'var(--accent)', marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}><AlertCircle size={48} /></div>
-            <h3 style={{ margin: '0 0 1rem 0', fontWeight: 800 }}>¿Eliminar Hallazgo?</h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.95rem' }}>Esta acción no se puede deshacer y el diente recuperará su estado original.</p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '0.8rem 1.5rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer' }}>CANCELAR</button>
-              <button onClick={confirmDelete} style={{ padding: '0.8rem 1.5rem', borderRadius: '10px', border: 'none', background: 'var(--accent)', color: 'white', fontWeight: 700, cursor: 'pointer' }}>ELIMINAR</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DesbloqueoModal
+        abierto={bloqueo.showUnlock}
+        seccionNombre="Prótesis"
+        onConfirm={(motivo) => bloqueo.solicitar(historiaId, motivo)}
+        onCancel={() => bloqueo.setShowUnlock(false)}
+        error={bloqueo.unlockError}
+        enviando={bloqueo.unlocking}
+      />
+
+      <DesbloqueoModal
+        abierto={bloqueoOdon.showUnlock}
+        seccionNombre="Odontograma"
+        onConfirm={(motivo) => bloqueoOdon.solicitar(historiaId, motivo)}
+        onCancel={() => bloqueoOdon.setShowUnlock(false)}
+        error={bloqueoOdon.unlockError}
+        enviando={bloqueoOdon.unlocking}
+      />
     </div>
   );
 };

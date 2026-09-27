@@ -139,7 +139,7 @@ const clinicaService = {
       headers: getAuthHeader(),
     }),
 
-  // Odontograma
+  // Odontograma (HU-2: registros inmutables, sin borrado)
   listOdontograma: (historiaId) =>
     axios.get(`${API_URL}/historias/${historiaId}/odontograma`, {
       headers: getAuthHeader(),
@@ -149,12 +149,6 @@ const clinicaService = {
     axios.post(`${API_URL}/historias/${historiaId}/odontograma`, data, {
       headers: getAuthHeader(),
     }),
-
-  deleteOdontogramaRegistro: (historiaId, registroId) =>
-    axios.delete(
-      `${API_URL}/historias/${historiaId}/odontograma/${registroId}`,
-      { headers: getAuthHeader() },
-    ),
 
   // Protesis
   getProtesis: (historiaId) =>
@@ -199,6 +193,14 @@ const clinicaService = {
     axios.put(`${API_URL}/historias/${historiaId}/examen-complementario`, data, {
       headers: getAuthHeader(),
     }),
+
+  // Desbloqueo excepcional ADMIN de secciones inmutables (HU-2, un solo uso)
+  solicitarDesbloqueo: (historiaId, seccion, motivo) =>
+    axios.post(
+      `${API_URL}/historias/${historiaId}/${seccion}/desbloqueo`,
+      { motivo },
+      { headers: getAuthHeader() },
+    ),
 };
 
 export default clinicaService;

@@ -6,6 +6,7 @@ import co.edu.unbosque.entity.clinica.HistoriaClinica;
 import co.edu.unbosque.entity.enums.EstadoHistoria;
 import co.edu.unbosque.repository.PatientRepository;
 import co.edu.unbosque.repository.UserRepository;
+import co.edu.unbosque.repository.clinica.DesbloqueoRepository;
 import co.edu.unbosque.repository.clinica.DiagnosticoRepository;
 import co.edu.unbosque.repository.clinica.HistoriaClinicaRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -71,6 +73,9 @@ class AuditoriaTrazabilidadTest {
 
     @Autowired
     private DiagnosticoRepository diagnosticoRepository;
+
+    @Autowired
+    private DesbloqueoRepository desbloqueoRepository;
 
     private Long pacienteId;
     private Long odontologoId;
@@ -130,6 +135,10 @@ class AuditoriaTrazabilidadTest {
     @AfterEach
     void limpiarDatosDePrueba() {
         if (historiaId != null) {
+            // Los desbloqueos referencian la historia (FK): se borran primero.
+            desbloqueoRepository.findAll().stream()
+                    .filter(d -> d.getHistoriaClinica().getId().equals(historiaId))
+                    .forEach(desbloqueoRepository::delete);
             diagnosticoRepository.findByHistoriaClinicaId(historiaId).ifPresent(diagnosticoRepository::delete);
             historiaClinicaRepository.findById(historiaId).ifPresent(historiaClinicaRepository::delete);
         }
@@ -179,7 +188,7 @@ class AuditoriaTrazabilidadTest {
 
     @Test
     @WithMockUser(username = "dr_andrea")
-    @DisplayName("Segundo PUT con dr_carlos: updatedBy refleja al segundo profesional y createdBy conserva al primero")
+    @DisplayName("Segundo PUT con dr_carlos tras desbloqueo ADMIN: updatedBy refleja al segundo profesional y createdBy conserva al primero")
     void segundoPutReflejaAlUltimoProfesional() throws Exception {
         historiaId = crearHistoria();
 
@@ -195,7 +204,21 @@ class AuditoriaTrazabilidadTest {
         assertNotNull(trasAlta.get("createdAt"), "createdAt debe estar definido tras el alta");
         assertNotNull(trasAlta.get("updatedAt"), "updatedAt debe estar definido tras el alta");
 
-        // Un segundo profesional abre su propia sesión (segundo PUT sobre el mismo registro).
+        // Sin desbloqueo la sección es inmutable (HU-2).
+        mockMvc.perform(put("/api/historias/" + historiaId + "/diagnostico")
+                        .with(user("dr_carlos"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dental\": \"Caries en pieza 46 tratada\"}"))
+                .andExpect(status().isConflict());
+
+        // Desbloqueo excepcional del ADMIN para corregir la errata.
+        mockMvc.perform(post("/api/historias/" + historiaId + "/diagnostico/desbloqueo")
+                        .with(user("jefe").authorities(new SimpleGrantedAuthority("ADMIN")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"motivo\": \"Corrección de error de digitación en dental\"}"))
+                .andExpect(status().isCreated());
+
+        // Un segundo profesional corrige con el desbloqueo vigente (un solo uso).
         // El contexto de seguridad se resuelve por petición, igual que con un JWT propio.
         mockMvc.perform(put("/api/historias/" + historiaId + "/diagnostico")
                         .with(user("dr_carlos"))
@@ -209,6 +232,13 @@ class AuditoriaTrazabilidadTest {
         assertEquals("dr_andrea", trasModificacion.get("createdBy").asText(),
                 "createdBy no debe cambiar cuando otro profesional modifica el registro");
         assertNotNull(trasModificacion.get("updatedAt"), "updatedAt debe actualizarse en la modificación");
+
+        // Re-bloqueo automático: sin nuevo desbloqueo, otro PUT vuelve a dar 409.
+        mockMvc.perform(put("/api/historias/" + historiaId + "/diagnostico")
+                        .with(user("dr_carlos"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dental\": \"Otro cambio\"}"))
+                .andExpect(status().isConflict());
     }
 
     @Test
@@ -227,7 +257,20 @@ class AuditoriaTrazabilidadTest {
         assertEquals("dr_andrea", historiaTrasAlta.get("updatedBy").asText(),
                 "Al guardar una sección, la historia registra a dr_andrea como último modificador");
 
-        // Un segundo profesional guarda otra sección de la misma historia:
+        // Sin desbloqueo la sección es inmutable: el segundo PUT no mueve la historia.
+        mockMvc.perform(put("/api/historias/" + historiaId + "/diagnostico")
+                        .with(user("dr_carlos"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dental\": \"Caries en pieza 46 tratada\"}"))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(post("/api/historias/" + historiaId + "/diagnostico/desbloqueo")
+                        .with(user("jefe").authorities(new SimpleGrantedAuthority("ADMIN")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"motivo\": \"Corrección de error de digitación en dental\"}"))
+                .andExpect(status().isCreated());
+
+        // Un segundo profesional guarda otra versión de la misma historia tras el desbloqueo:
         // la línea "Última modificación" de la UI debe moverse a él.
         mockMvc.perform(put("/api/historias/" + historiaId + "/diagnostico")
                         .with(user("dr_carlos"))

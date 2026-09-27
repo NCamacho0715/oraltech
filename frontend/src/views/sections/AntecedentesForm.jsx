@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Save, CheckCircle } from "lucide-react";
 import clinicaService from "../../services/clinicaService";
+import { useBloqueoSeccion } from "../../hooks/useBloqueoSeccion";
+import DesbloqueoModal from "../../components/clinica/DesbloqueoModal";
+import { formatFechaCorta } from "../../utils/fechas";
 
 // Component defined OUTSIDE to avoid re-mounting on each parent render
 const CheckboxRow = ({
@@ -127,8 +130,13 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // HU-2: bloqueo de sección inmutable + desbloqueo excepcional ADMIN.
+  const bloqueo = useBloqueoSeccion("antecedentes");
+  const [meta, setMeta] = useState({ createdAt: "", createdBy: "" });
+
   // Fail-safe: si no se pudo cargar el paciente, el formulario queda en solo lectura.
-  const locked = readOnly || patientBlocked;
+  // HU-2: también queda bloqueado si la sección ya tiene un registro guardado.
+  const locked = readOnly || patientBlocked || bloqueo.bloqueado;
 
   const loadAntecedentes = useCallback(async () => {
     try {
@@ -150,6 +158,15 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
         if (res.data.alergiaMedicamentos) {
           setHasAlergiaMed(true);
         }
+
+        // HU-2: si ya existe registro, la sección queda bloqueada.
+        if (res.data.id) {
+          bloqueo.marcarRegistrado(res.data);
+          setMeta({
+            createdAt: res.data.createdAt || "",
+            createdBy: res.data.createdBy || "",
+          });
+        }
       }
     } catch (err) {
       // 404 = "sin antecedentes aún": estado vacío, no error.
@@ -158,6 +175,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
         err?.response?.data?.message || err?.message || "No se pudieron cargar los antecedentes",
       );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historiaId]);
 
   const loadPatient = useCallback(async () => {
@@ -191,10 +209,20 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
     if (!hasMed) finalData.medicamentos = "";
     if (!hasAlergiaMed) finalData.alergiaMedicamentos = "";
     try {
-      await clinicaService.upsertAntecedentes(historiaId, finalData);
+      const res = await clinicaService.upsertAntecedentes(historiaId, finalData);
+      if (res?.data) {
+        setMeta({
+          createdAt: res.data.createdAt || "",
+          createdBy: res.data.createdBy || "",
+        });
+      }
+      // HU-2: tras guardar, la sección queda bloqueada.
+      bloqueo.marcarGuardado();
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
+      // HU-2: 409 = el backend ya la bloqueó: reflejarlo sin falso "Guardado".
+      if (err?.response?.status === 409) bloqueo.marcarConflicto();
       setSaveError(
         err?.response?.data?.message || err?.message || "Error al guardar",
       );
@@ -212,6 +240,9 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
     color: "var(--text-main)",
     fontSize: "0.85rem",
   };
+
+  // HU-2: fecha del registro bloqueado ('' si falta o es inválida, nunca 'Invalid Date').
+  const fechaBloqueo = formatFechaCorta(meta.createdAt);
 
   return (
     <form onSubmit={handleSubmit} style={{ animation: "fadeIn 0.4s ease-out" }}>
@@ -262,6 +293,41 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
             No se pudieron cargar los antecedentes.{" "}
           </strong>
           {loadError}
+        </div>
+      )}
+
+      {/* HU-2: estado de bloqueo de la sección */}
+      {bloqueo.bloqueado && (
+        <div
+          style={{
+            border: "1px solid var(--border-color)",
+            background: "var(--surface)",
+            borderRadius: "8px",
+            padding: "0.8rem 1rem",
+            marginBottom: "1.5rem",
+            fontSize: "0.9rem",
+            color: "var(--text-main)",
+          }}
+        >
+          <strong>Registro bloqueado.</strong>
+          {fechaBloqueo ? ` Registrado el ${fechaBloqueo}` : ""}
+          {meta.createdBy ? ` por ${meta.createdBy}` : ""} Solo un ADMIN puede
+          desbloquearlo para corregir un error de digitación.
+        </div>
+      )}
+      {!bloqueo.bloqueado && bloqueo.desbloqueo && (
+        <div
+          style={{
+            border: "1px solid var(--border-color)",
+            background: "var(--surface)",
+            borderRadius: "8px",
+            padding: "0.8rem 1rem",
+            marginBottom: "1.5rem",
+            fontSize: "0.9rem",
+            color: "var(--text-main)",
+          }}
+        >
+          Desbloqueada por {bloqueo.desbloqueo.por}: {bloqueo.desbloqueo.motivo}
         </div>
       )}
 
@@ -337,6 +403,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                   type="text"
                   placeholder="Especificar..."
                   value={data.famOtros}
+                  disabled={locked}
                   onChange={(e) => handleChange("famOtros", e.target.value)}
                   style={commonInputStyle}
                 />
@@ -422,6 +489,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                   type="text"
                   placeholder="Tipo de alergia..."
                   value={data.alergias}
+                  disabled={locked}
                   onChange={(e) => handleChange("alergias", e.target.value)}
                   style={commonInputStyle}
                 />
@@ -536,6 +604,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 <input
                   type="text"
                   value={data.cafe}
+                  disabled={locked}
                   onChange={(e) => handleChange("cafe", e.target.value)}
                   placeholder="Frecuencia..."
                   style={commonInputStyle}
@@ -551,6 +620,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 <input
                   type="text"
                   value={data.medicamentos}
+                  disabled={locked}
                   onChange={(e) => handleChange("medicamentos", e.target.value)}
                   placeholder="¿Cuáles?"
                   style={commonInputStyle}
@@ -566,6 +636,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 <input
                   type="text"
                   value={data.alergiaMedicamentos}
+                  disabled={locked}
                   onChange={(e) =>
                     handleChange("alergiaMedicamentos", e.target.value)
                   }
@@ -627,6 +698,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                     <input
                       type="number"
                       value={data.mesesEmbarazo}
+                      disabled={locked}
                       onChange={(e) =>
                         handleChange("mesesEmbarazo", parseInt(e.target.value))
                       }
@@ -718,6 +790,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 <label>Cepillado (día)</label>
                 <select
                   value={data.cepilladoFreq}
+                  disabled={locked}
                   onChange={(e) =>
                     handleChange("cepilladoFreq", parseInt(e.target.value))
                   }
@@ -731,6 +804,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 <label>Seda Dental</label>
                 <select
                   value={data.sedaFreq}
+                  disabled={locked}
                   onChange={(e) => handleChange("sedaFreq", e.target.value)}
                 >
                   <option value="1">1 vez al día</option>
@@ -745,6 +819,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
               <input
                 type="text"
                 value={data.otrosHabitos}
+                disabled={locked}
                 onChange={(e) => handleChange("otrosHabitos", e.target.value)}
                 placeholder="¿Cuál?"
               />
@@ -761,6 +836,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 <input
                   type="text"
                   value={data.ultimaVisita}
+                  disabled={locked}
                   onChange={(e) => handleChange("ultimaVisita", e.target.value)}
                   placeholder="Fecha..."
                 />
@@ -770,6 +846,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 <input
                   type="text"
                   value={data.motivoVisita}
+                  disabled={locked}
                   onChange={(e) => handleChange("motivoVisita", e.target.value)}
                   placeholder="Ej. Dolor..."
                 />
@@ -852,6 +929,45 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
           )}
         </div>
       )}
+      {/* HU-2: desbloqueo excepcional, solo ADMIN */}
+      {!readOnly && bloqueo.bloqueado && bloqueo.isAdmin && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "1rem",
+            paddingTop: "1.5rem",
+            borderTop: "2px solid var(--border-color)",
+            marginTop: "2rem",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => bloqueo.setShowUnlock(true)}
+            style={{
+              width: "auto",
+              padding: "0.8rem 2.5rem",
+              borderRadius: "10px",
+              border: "1px solid var(--border-color)",
+              background: "transparent",
+              color: "var(--text-main)",
+              fontWeight: 700,
+              cursor: "pointer",
+              margin: 0,
+            }}
+          >
+            Desbloquear (ADMIN)
+          </button>
+        </div>
+      )}
+      <DesbloqueoModal
+        abierto={bloqueo.showUnlock}
+        seccionNombre="Antecedentes"
+        onConfirm={(motivo) => bloqueo.solicitar(historiaId, motivo)}
+        onCancel={() => bloqueo.setShowUnlock(false)}
+        error={bloqueo.unlockError}
+        enviando={bloqueo.unlocking}
+      />
     </form>
   );
 };

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Save, CheckCircle, Plus } from 'lucide-react';
 import clinicaService from '../../services/clinicaService';
-import { parseFechaLocal } from '../../utils/fechas';
+import { parseFechaLocal, formatFechaCorta } from '../../utils/fechas';
+import { useBloqueoSeccion } from '../../hooks/useBloqueoSeccion';
+import DesbloqueoModal from '../../components/clinica/DesbloqueoModal';
 
 // Decisión de modelo (documentada en docs/diagnostico-modelo.md):
 // La UI se adapta al modelo clínico de 8 campos del backend
@@ -67,6 +69,15 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
   const [saveError, setSaveError] = useState('');
   const [loadError, setLoadError] = useState('');
 
+  // HU-2: bloqueo independiente por subsección inmutable.
+  const bloqueoDiag = useBloqueoSeccion('diagnostico');
+  const bloqueoPron = useBloqueoSeccion('pronostico');
+  const [diagMeta, setDiagMeta] = useState({ createdAt: null, createdBy: '' });
+  const [pronMeta, setPronMeta] = useState({ createdAt: null, createdBy: '' });
+
+  const lockedDiag = readOnly || bloqueoDiag.bloqueado;
+  const lockedPron = readOnly || bloqueoPron.bloqueado;
+
   useEffect(() => {
     load();
   }, [historiaId]);
@@ -80,13 +91,21 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
     ]);
     // 404 = "aún no registrado": estado vacío, no error.
     if (d.status === 'fulfilled') {
-      if (d.value.data) setDiag(mapDiagnosticoToState(d.value.data));
+      if (d.value.data) {
+        setDiag(mapDiagnosticoToState(d.value.data));
+        bloqueoDiag.marcarRegistrado(d.value.data);
+        setDiagMeta({ createdAt: d.value.data.createdAt ?? null, createdBy: d.value.data.createdBy ?? '' });
+      }
     } else if (!isNotFound(d.reason)) {
       setLoadError(extractErrorMessage(d.reason));
       return;
     }
     if (p.status === 'fulfilled') {
-      if (p.value.data) setPron({ descripcion: p.value.data.descripcion ?? '' });
+      if (p.value.data) {
+        setPron({ descripcion: p.value.data.descripcion ?? '' });
+        bloqueoPron.marcarRegistrado(p.value.data);
+        setPronMeta({ createdAt: p.value.data.createdAt ?? null, createdBy: p.value.data.createdBy ?? '' });
+      }
     } else if (!isNotFound(p.reason)) {
       setLoadError(extractErrorMessage(p.reason));
       return;
@@ -98,31 +117,59 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
     }
   };
 
+  // HU-2: guardado SECUENCIAL (primero diagnóstico, luego pronóstico).
+  // Cada éxito marca su propio bloqueo; cada 409 marca ese conflicto y
+  // acumula el mensaje real del backend (nunca falso "Guardado").
+  // Las secciones ya bloqueadas no se reintentan.
   const handleSaveMain = async () => {
     const prevDiag = { ...diag };
     const prevPron = { ...pron };
     setSaving(true);
     setSaveError('');
     setSaved(false);
-    try {
-      const [dRes, pRes] = await Promise.all([
-        clinicaService.upsertDiagnostico(historiaId, diag),
-        clinicaService.upsertPronostico(historiaId, pron)
-      ]);
-      // Re-mapear explícitamente desde la respuesta para no mezclar formas.
-      if (dRes?.data) setDiag(mapDiagnosticoToState(dRes.data));
-      if (pRes?.data) setPron({ descripcion: pRes.data.descripcion ?? prevPron.descripcion });
+    const errores = [];
+    let exitoAlguno = false;
+    if (!bloqueoDiag.bloqueado) {
+      try {
+        const dRes = await clinicaService.upsertDiagnostico(historiaId, diag);
+        // Re-mapear explícitamente desde la respuesta para no mezclar formas.
+        if (dRes?.data) {
+          setDiag(mapDiagnosticoToState(dRes.data));
+          setDiagMeta({ createdAt: dRes.data.createdAt ?? null, createdBy: dRes.data.createdBy ?? '' });
+        }
+        bloqueoDiag.marcarGuardado();
+        exitoAlguno = true;
+      } catch (err) {
+        // Revertir al estado previo: nunca mostrar "Guardado" si falló.
+        setDiag(prevDiag);
+        if (err?.response?.status === 409) bloqueoDiag.marcarConflicto();
+        errores.push(extractErrorMessage(err));
+      }
+    }
+    if (!bloqueoPron.bloqueado) {
+      try {
+        const pRes = await clinicaService.upsertPronostico(historiaId, pron);
+        if (pRes?.data) {
+          setPron({ descripcion: pRes.data.descripcion ?? prevPron.descripcion });
+          setPronMeta({ createdAt: pRes.data.createdAt ?? null, createdBy: pRes.data.createdBy ?? '' });
+        }
+        bloqueoPron.marcarGuardado();
+        exitoAlguno = true;
+      } catch (err) {
+        // Revertir al estado previo: nunca mostrar "Guardado" si falló.
+        setPron(prevPron);
+        if (err?.response?.status === 409) bloqueoPron.marcarConflicto();
+        errores.push(extractErrorMessage(err));
+      }
+    }
+    if (errores.length > 0) {
+      setSaved(false);
+      setSaveError(errores.join(' | '));
+    } else if (exitoAlguno) {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      // Revertir al estado previo: nunca mostrar "Guardado" si falló.
-      setDiag(prevDiag);
-      setPron(prevPron);
-      setSaved(false);
-      setSaveError(extractErrorMessage(err));
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   const handleAddInter = async () => {
@@ -150,36 +197,76 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
           </div>
         )}
 
+        {/* HU-2: banner de bloqueo / desbloqueo de Diagnóstico */}
+        {bloqueoDiag.desbloqueo ? (
+          <div style={{ border: '1px solid var(--success)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            Desbloqueada por {bloqueoDiag.desbloqueo.por}: {bloqueoDiag.desbloqueo.motivo}
+          </div>
+        ) : bloqueoDiag.bloqueado && (
+          <div style={{ border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            Registro bloqueado
+            {diagMeta.createdAt && ` · ${formatFechaCorta(diagMeta.createdAt)}`}
+            {diagMeta.createdBy && ` · ${diagMeta.createdBy}`}
+          </div>
+        )}
+        {!readOnly && bloqueoDiag.bloqueado && bloqueoDiag.isAdmin && (
+          <div style={{ marginBottom: '1rem' }}>
+            <button onClick={() => bloqueoDiag.setShowUnlock(true)} style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer' }}>
+              Desbloquear (ADMIN) · diagnostico
+            </button>
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
             {DIAG_FIELDS.map(({ key, label }) => (
                 <div key={key}>
                     <label style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>{label}</label>
                     <textarea
                         value={diag[key]}
-                        readOnly={readOnly}
+                        disabled={lockedDiag}
                         onChange={(e) => setDiag({ ...diag, [key]: e.target.value })}
                         style={{ width: '100%', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '8px', minHeight: '80px', fontSize: '1rem', fontFamily: 'inherit', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)', resize: 'vertical', transition: 'border-color 0.3s' }}
-                        onFocus={(e) => !readOnly && (e.target.style.borderColor = 'var(--primary)')}
-                        onBlur={(e) => !readOnly && (e.target.style.borderColor = 'var(--border-color)')}
+                        onFocus={(e) => !lockedDiag && (e.target.style.borderColor = 'var(--primary)')}
+                        onBlur={(e) => !lockedDiag && (e.target.style.borderColor = 'var(--border-color)')}
                     />
                 </div>
             ))}
         </div>
 
+        {/* HU-2: banner de bloqueo / desbloqueo de Pronóstico */}
+        {bloqueoPron.desbloqueo ? (
+          <div style={{ border: '1px solid var(--success)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            Desbloqueada por {bloqueoPron.desbloqueo.por}: {bloqueoPron.desbloqueo.motivo}
+          </div>
+        ) : bloqueoPron.bloqueado && (
+          <div style={{ border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            Registro bloqueado
+            {pronMeta.createdAt && ` · ${formatFechaCorta(pronMeta.createdAt)}`}
+            {pronMeta.createdBy && ` · ${pronMeta.createdBy}`}
+          </div>
+        )}
+        {!readOnly && bloqueoPron.bloqueado && bloqueoPron.isAdmin && (
+          <div style={{ marginBottom: '1rem' }}>
+            <button onClick={() => bloqueoPron.setShowUnlock(true)} style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer' }}>
+              Desbloquear (ADMIN) · pronostico
+            </button>
+          </div>
+        )}
+
         <div style={{ marginBottom: '2rem' }}>
           <label style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: '#e63946', marginBottom: '0.5rem' }}>Pronóstico Profesional</label>
           <textarea
             value={pron.descripcion}
-            readOnly={readOnly}
+            disabled={lockedPron}
             onChange={(e) => setPron({ ...pron, descripcion: e.target.value })}
             style={{ width: '100%', padding: '1rem', border: '1px solid rgba(230, 57, 70, 0.4)', borderRadius: '8px', minHeight: '80px', fontSize: '1rem', fontFamily: 'inherit', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)', resize: 'vertical', transition: 'border-color 0.3s' }}
             placeholder="Favorable, reservado, etc."
-            onFocus={(e) => !readOnly && (e.target.style.borderColor = 'var(--accent)')}
-            onBlur={(e) => !readOnly && (e.target.style.borderColor = 'rgba(230, 57, 70, 0.4)')}
+            onFocus={(e) => !lockedPron && (e.target.style.borderColor = 'var(--accent)')}
+            onBlur={(e) => !lockedPron && (e.target.style.borderColor = 'rgba(230, 57, 70, 0.4)')}
           />
         </div>
 
-        {!readOnly && (
+        {!readOnly && (!bloqueoDiag.bloqueado || !bloqueoPron.bloqueado) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '1.5rem', borderTop: '2px solid rgba(0, 119, 182, 0.1)' }}>
             <button
               onClick={handleSaveMain}
@@ -239,6 +326,24 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
             })}
         </div>
       </div>
+
+      {/* HU-2: desbloqueo excepcional ADMIN, un modal por subsección */}
+      <DesbloqueoModal
+        abierto={bloqueoDiag.showUnlock}
+        seccionNombre="Diagnóstico"
+        onConfirm={(motivo) => bloqueoDiag.solicitar(historiaId, motivo)}
+        onCancel={() => bloqueoDiag.setShowUnlock(false)}
+        error={bloqueoDiag.unlockError}
+        enviando={bloqueoDiag.unlocking}
+      />
+      <DesbloqueoModal
+        abierto={bloqueoPron.showUnlock}
+        seccionNombre="Pronóstico"
+        onConfirm={(motivo) => bloqueoPron.solicitar(historiaId, motivo)}
+        onCancel={() => bloqueoPron.setShowUnlock(false)}
+        error={bloqueoPron.unlockError}
+        enviando={bloqueoPron.unlocking}
+      />
     </div>
   );
 };

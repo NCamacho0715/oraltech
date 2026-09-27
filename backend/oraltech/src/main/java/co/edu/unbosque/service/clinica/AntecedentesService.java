@@ -4,6 +4,7 @@ import co.edu.unbosque.dto.clinica.AntecedentesRequest;
 import co.edu.unbosque.dto.clinica.AntecedentesResponse;
 import co.edu.unbosque.entity.clinica.Antecedentes;
 import co.edu.unbosque.entity.clinica.HistoriaClinica;
+import co.edu.unbosque.entity.clinica.SeccionHistoria;
 import co.edu.unbosque.repository.clinica.AntecedentesRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -20,6 +22,7 @@ public class AntecedentesService {
     private final AntecedentesRepository repo;
     private final HistoriaClinicaService historiaService;
     private final HistoriaClinicaGuard guard;
+    private final DesbloqueoService desbloqueoService;
 
     @Transactional
     public AntecedentesResponse upsert(UUID historiaId, AntecedentesRequest req) {
@@ -36,7 +39,14 @@ public class AntecedentesService {
             }
         }
 
-        Antecedentes ant = repo.findByHistoriaClinicaId(historiaId)
+        boolean desbloqueado = desbloqueoService.consumirSiVigente(historiaId, SeccionHistoria.ANTECEDENTES);
+        Optional<Antecedentes> existente = repo.findByHistoriaClinicaId(historiaId);
+        if (existente.isPresent() && !desbloqueado) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    SeccionHistoria.ANTECEDENTES.mensajeBloqueo());
+        }
+
+        Antecedentes ant = existente
                 .orElseGet(() -> {
                     Antecedentes a = new Antecedentes();
                     a.setHistoriaClinica(historia);

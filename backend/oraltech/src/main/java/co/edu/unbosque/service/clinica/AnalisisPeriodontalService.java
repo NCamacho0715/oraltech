@@ -4,11 +4,15 @@ import co.edu.unbosque.dto.clinica.AnalisisPeriodontalRequest;
 import co.edu.unbosque.dto.clinica.AnalisisPeriodontalResponse;
 import co.edu.unbosque.entity.clinica.AnalisisPeriodontal;
 import co.edu.unbosque.entity.clinica.HistoriaClinica;
+import co.edu.unbosque.entity.clinica.SeccionHistoria;
 import co.edu.unbosque.repository.clinica.AnalisisPeriodontalRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -18,6 +22,7 @@ public class AnalisisPeriodontalService {
     private final AnalisisPeriodontalRepository repo;
     private final HistoriaClinicaService historiaService;
     private final HistoriaClinicaGuard guard;
+    private final DesbloqueoService desbloqueoService;
 
     @Transactional
     public AnalisisPeriodontalResponse upsert(UUID historiaId, AnalisisPeriodontalRequest req) {
@@ -25,7 +30,14 @@ public class AnalisisPeriodontalService {
         guard.requireActiva(historia);
         guard.registrarActividad(historia);
 
-        AnalisisPeriodontal entity = repo.findByHistoriaClinicaId(historiaId)
+        boolean desbloqueado = desbloqueoService.consumirSiVigente(historiaId, SeccionHistoria.PERIODONTAL);
+        Optional<AnalisisPeriodontal> existente = repo.findByHistoriaClinicaId(historiaId);
+        if (existente.isPresent() && !desbloqueado) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    SeccionHistoria.PERIODONTAL.mensajeBloqueo());
+        }
+
+        AnalisisPeriodontal entity = existente
                 .orElseGet(() -> {
                     AnalisisPeriodontal a = new AnalisisPeriodontal();
                     a.setHistoriaClinica(historia);

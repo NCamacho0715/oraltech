@@ -177,7 +177,8 @@ const Odontogram = ({ data = [], onEventAdd, readOnly = false }) => {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          padding: "4px",
+          minWidth: 0,
+          padding: "3px",
           border: isSelected
             ? "2px solid var(--primary)"
             : "1px solid var(--border-color)",
@@ -188,19 +189,17 @@ const Odontogram = ({ data = [], onEventAdd, readOnly = false }) => {
       >
         <span
           style={{
-            fontSize: "10px",
+            fontSize: "9px",
             fontWeight: 800,
             color: "var(--text-secondary)",
-            marginBottom: "4px",
+            marginBottom: "2px",
           }}
         >
           {number}
         </span>
         <svg
-          width="45"
-          height="45"
           viewBox="0 0 40 40"
-          style={{ cursor: readOnly ? "default" : "pointer" }}
+          style={{ width: "100%", maxWidth: "52px", height: "auto", display: "block", cursor: readOnly ? "default" : "pointer" }}
         >
           <path
             d="M5,5 L35,5 L20,20 Z"
@@ -299,31 +298,36 @@ const Odontogram = ({ data = [], onEventAdd, readOnly = false }) => {
           position: "relative",
         }}
       >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${viewMode === "ADULTO" ? 16 : 10}, 1fr)`,
-            gap: "6px",
-            marginBottom: "2rem",
-            paddingBottom: "1rem",
-            borderBottom: "1px dashed var(--border-color)",
-          }}
-        >
-          {currentTeeth.upperRight.map((n) => (
-            <Tooth key={n} number={n} />
-          ))}
-          {currentTeeth.upperLeft.map((n) => (
-            <Tooth key={n} number={n} />
-          ))}
+        <div style={{ overflowX: "auto" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${viewMode === "ADULTO" ? 16 : 10}, minmax(0, 1fr))`,
+              gap: "6px",
+              marginBottom: "2rem",
+              paddingBottom: "1rem",
+              borderBottom: "1px dashed var(--border-color)",
+              minWidth: viewMode === "ADULTO" ? "560px" : "380px",
+            }}
+          >
+            {currentTeeth.upperRight.map((n) => (
+              <Tooth key={n} number={n} />
+            ))}
+            {currentTeeth.upperLeft.map((n) => (
+              <Tooth key={n} number={n} />
+            ))}
+          </div>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${viewMode === "ADULTO" ? 16 : 10}, 1fr)`,
-            gap: "6px",
-          }}
-        >
+        <div style={{ overflowX: "auto" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${viewMode === "ADULTO" ? 16 : 10}, minmax(0, 1fr))`,
+              gap: "6px",
+              minWidth: viewMode === "ADULTO" ? "560px" : "380px",
+            }}
+          >
           {viewMode === "ADULTO" ? (
             <>
               {adultTeeth.lowerRight.reverse().map((n) => (
@@ -343,6 +347,7 @@ const Odontogram = ({ data = [], onEventAdd, readOnly = false }) => {
               ))}
             </>
           )}
+          </div>
         </div>
 
         {!readOnly && selectedTooth && (

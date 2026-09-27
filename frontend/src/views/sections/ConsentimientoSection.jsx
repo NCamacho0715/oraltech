@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Download, Save } from 'lucide-react';
 import clinicaService from '../../services/clinicaService';
 import SignatureCanvas from '../../components/clinica/SignatureCanvas';
+import { useBloqueoSeccion } from '../../hooks/useBloqueoSeccion';
+import DesbloqueoModal from '../../components/clinica/DesbloqueoModal';
+import { formatFechaCorta } from '../../utils/fechas';
 
 const ConsentimientoSection = ({ historiaId, readOnly }) => {
   const [data, setData] = useState({
@@ -15,6 +18,11 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
   const [loadError, setLoadError] = useState('');
   const [saveError, setSaveError] = useState('');
 
+  // HU-2: bloqueo de sección inmutable (slug 'consentimiento').
+  const bloqueo = useBloqueoSeccion('consentimiento');
+  const [meta, setMeta] = useState({ createdAt: null, createdBy: '' });
+  const locked = readOnly || bloqueo.bloqueado;
+
   useEffect(() => {
     loadData();
   }, [historiaId]);
@@ -23,7 +31,11 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
     setLoadError('');
     try {
       const res = await clinicaService.getConsentimiento(historiaId);
-      if (res.data) setData(res.data);
+      if (res.data) {
+        setData(res.data);
+        bloqueo.marcarRegistrado(res.data);
+        setMeta({ createdAt: res.data.createdAt ?? null, createdBy: res.data.createdBy ?? '' });
+      }
     } catch (err) {
       // 404 = "aún no registrado": se conserva el contenido por defecto, no es error.
       if (err?.response?.status === 404) return;
@@ -32,6 +44,8 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
     finally { setLoading(false); }
   };
 
+  // HU-2: tras guardar OK la sección queda bloqueada; un 409 del backend
+  // marca el conflicto con su mensaje real (nunca falso "Guardado").
   const handleSave = async () => {
     if (!data.firmaPaciente) {
         setSaveError('Se requiere la firma del paciente');
@@ -39,11 +53,16 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
     }
     setSaving(true);
     setSaveError('');
+    setSaved(false);
     try {
-      await clinicaService.upsertConsentimiento(historiaId, data);
+      const res = await clinicaService.upsertConsentimiento(historiaId, data);
+      if (res?.data) setMeta({ createdAt: res.data.createdAt ?? null, createdBy: res.data.createdBy ?? '' });
+      bloqueo.marcarGuardado();
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
+      if (err?.response?.status === 409) bloqueo.marcarConflicto();
+      setSaved(false);
       setSaveError(err?.response?.data?.message || err?.message || 'Error al guardar consentimiento');
     } finally {
       setSaving(false);
@@ -71,8 +90,28 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
           </div>
         )}
         
+        {/* HU-2: banner de bloqueo / desbloqueo de la sección inmutable */}
+        {bloqueo.desbloqueo ? (
+          <div style={{ border: '1px solid var(--success)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            Desbloqueada por {bloqueo.desbloqueo.por}: {bloqueo.desbloqueo.motivo}
+          </div>
+        ) : bloqueo.bloqueado && (
+          <div style={{ border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            Registro bloqueado
+            {meta.createdAt && ` · ${formatFechaCorta(meta.createdAt)}`}
+            {meta.createdBy && ` · ${meta.createdBy}`}
+          </div>
+        )}
+        {!readOnly && bloqueo.bloqueado && bloqueo.isAdmin && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <button onClick={() => bloqueo.setShowUnlock(true)} style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer' }}>
+              Desbloquear (ADMIN) · consentimiento
+            </button>
+          </div>
+        )}
+        
         <div style={{ background: '#f8fafc', padding: '2rem', borderRadius: '12px', border: '1px dashed #cbd5e1', marginBottom: '2.5rem', color: 'var(--text-secondary)', fontSize: '1.05rem', fontStyle: 'italic', lineHeight: 1.6 }}>
-            {readOnly ? (
+            {locked ? (
                 <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{data.contenido}</p>
             ) : (
                 <textarea 
@@ -91,7 +130,7 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
                         <img src={`data:image/png;base64,${data.firmaPaciente}`} alt="Firma Paciente" style={{ maxHeight: '120px', filter: 'contrast(1.2)' }} />
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '1rem' }}>Firma del Paciente (Registrada)</span>
                     </div>
-                ) : !readOnly && (
+                ) : !locked && (
                     <SignatureCanvas 
                         label="Firma del Paciente / Tutor"
                         onSave={(sig) => setData({...data, firmaPaciente: sig})}
@@ -105,7 +144,7 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
                         <img src={`data:image/png;base64,${data.firmaTestigo}`} alt="Firma Testigo" style={{ maxHeight: '120px', filter: 'contrast(1.2)' }} />
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '1rem' }}>Firma del Testigo (Registrada)</span>
                     </div>
-                ) : !readOnly && (
+                ) : !locked && (
                     <SignatureCanvas 
                         label="Firma del Testigo (Opcional)"
                         onSave={(sig) => setData({...data, firmaTestigo: sig})}
@@ -114,7 +153,7 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
             </div>
         </div>
 
-        {!readOnly && (
+        {!readOnly && !bloqueo.bloqueado && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '2rem', borderTop: '1px solid #e2e8f0' }}>
                 <button
                     onClick={handleSave}
@@ -144,6 +183,16 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
               </button>
           </div>
       )}
+
+      {/* HU-2: desbloqueo excepcional ADMIN (un solo uso, con motivo) */}
+      <DesbloqueoModal
+        abierto={bloqueo.showUnlock}
+        seccionNombre="Consentimiento Informado"
+        onConfirm={(motivo) => bloqueo.solicitar(historiaId, motivo)}
+        onCancel={() => bloqueo.setShowUnlock(false)}
+        error={bloqueo.unlockError}
+        enviando={bloqueo.unlocking}
+      />
     </div>
   );
 };

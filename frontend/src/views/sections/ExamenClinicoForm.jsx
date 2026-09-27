@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Save, CheckCircle } from 'lucide-react';
 import clinicaService from '../../services/clinicaService';
+import { useBloqueoSeccion } from '../../hooks/useBloqueoSeccion';
+import DesbloqueoModal from '../../components/clinica/DesbloqueoModal';
+import { formatFechaCorta } from '../../utils/fechas';
 
 // Reusable components outside to avoid focus/re-mount issues
 const SelectField = ({ label, field, options, data, onChange, readOnly }) => (
@@ -53,6 +56,11 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
   const [loadError, setLoadError] = useState('');
   const [saveError, setSaveError] = useState('');
 
+  // HU-2: bloqueo de sección inmutable + desbloqueo excepcional ADMIN.
+  const bloqueo = useBloqueoSeccion('examen');
+  const [meta, setMeta] = useState({ createdAt: '', createdBy: '' });
+  const locked = readOnly || bloqueo.bloqueado;
+
   useEffect(() => {
     loadData();
   }, [historiaId]);
@@ -67,6 +75,14 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
             if (res.data[key] !== null) cleanData[key] = res.data[key];
           });
           setData(prev => ({ ...prev, ...cleanData }));
+          // HU-2: si ya existe registro, la sección queda bloqueada.
+          if (res.data.id) {
+            bloqueo.marcarRegistrado(res.data);
+            setMeta({
+              createdAt: res.data.createdAt || '',
+              createdBy: res.data.createdBy || '',
+            });
+          }
       }
     } catch (err) {
       // 404 = "aún no registrado": estado vacío, no error.
@@ -84,10 +100,20 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
     setSaving(true);
     setSaveError('');
     try {
-      await clinicaService.upsertExamen(historiaId, data);
+      const res = await clinicaService.upsertExamen(historiaId, data);
+      if (res?.data) {
+        setMeta({
+          createdAt: res.data.createdAt || '',
+          createdBy: res.data.createdBy || '',
+        });
+      }
+      // HU-2: tras guardar, la sección queda bloqueada.
+      bloqueo.marcarGuardado();
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
+      // HU-2: 409 = el backend ya la bloqueó: reflejarlo sin falso "Guardado".
+      if (err?.response?.status === 409) bloqueo.marcarConflicto();
       setSaveError(err?.response?.data?.message || err?.message || 'Error al guardar examen clínico');
     } finally {
       setSaving(false);
@@ -96,6 +122,9 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
 
   const normalcyOptions = [{val: 'NORMAL', label: 'Normal'}, {val: 'ANORMAL', label: 'Anormal'}];
   const commonInputStyle = { width: '100%', padding: '0.5rem', border: '1px solid var(--primary)', borderRadius: '6px', background: 'var(--surface)', color: 'var(--text-main)', fontSize: '0.85rem' };
+
+  // HU-2: fecha del registro bloqueado ('' si falta o es inválida, nunca 'Invalid Date').
+  const fechaBloqueo = formatFechaCorta(meta.createdAt);
 
   return (
     <form onSubmit={handleSubmit} style={{ animation: 'fadeIn 0.4s ease-out' }}>
@@ -110,6 +139,20 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
           </div>
         )}
 
+        {/* HU-2: estado de bloqueo de la sección */}
+        {bloqueo.bloqueado && (
+          <div style={{ border: '1px solid var(--border-color)', background: 'var(--surface)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            <strong>Registro bloqueado.</strong>
+            {fechaBloqueo ? ` Registrado el ${fechaBloqueo}` : ''}
+            {meta.createdBy ? ` por ${meta.createdBy}` : ''} Solo un ADMIN puede desbloquearlo para corregir un error de digitación.
+          </div>
+        )}
+        {!bloqueo.bloqueado && bloqueo.desbloqueo && (
+          <div style={{ border: '1px solid var(--border-color)', background: 'var(--surface)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            Desbloqueada por {bloqueo.desbloqueo.por}: {bloqueo.desbloqueo.motivo}
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem' }}>
             
             {/* COLUMNA IZQUIERDA */}
@@ -117,30 +160,30 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
                 <section>
                     <h4 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1rem', fontWeight: 700 }}>Tejidos Blandos</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                        <SelectField label="Lengua" field="lengua" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
-                        <SelectField label="Carrillos" field="carrillos" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
-                        <SelectField label="Frenillos" field="frenillos" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
-                        <SelectField label="Paladar" field="paladar" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
-                        <SelectField label="Piso de Boca" field="pisoBoca" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
-                        <SelectField label="Labios" field="labios" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
-                        <SelectField label="Comisuras" field="comisuras" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
-                        <SelectField label="Glándulas Salivales" field="glandulas" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
-                        <SelectField label="Pigmentaciones" field="pigmentaciones" options={normalcyOptions} data={data} onChange={handleChange} readOnly={readOnly} />
+                        <SelectField label="Lengua" field="lengua" options={normalcyOptions} data={data} onChange={handleChange} readOnly={locked} />
+                        <SelectField label="Carrillos" field="carrillos" options={normalcyOptions} data={data} onChange={handleChange} readOnly={locked} />
+                        <SelectField label="Frenillos" field="frenillos" options={normalcyOptions} data={data} onChange={handleChange} readOnly={locked} />
+                        <SelectField label="Paladar" field="paladar" options={normalcyOptions} data={data} onChange={handleChange} readOnly={locked} />
+                        <SelectField label="Piso de Boca" field="pisoBoca" options={normalcyOptions} data={data} onChange={handleChange} readOnly={locked} />
+                        <SelectField label="Labios" field="labios" options={normalcyOptions} data={data} onChange={handleChange} readOnly={locked} />
+                        <SelectField label="Comisuras" field="comisuras" options={normalcyOptions} data={data} onChange={handleChange} readOnly={locked} />
+                        <SelectField label="Glándulas Salivales" field="glandulas" options={normalcyOptions} data={data} onChange={handleChange} readOnly={locked} />
+                        <SelectField label="Pigmentaciones" field="pigmentaciones" options={normalcyOptions} data={data} onChange={handleChange} readOnly={locked} />
                     </div>
                 </section>
 
                 <section>
                     <h4 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1rem', fontWeight: 700 }}>Tejidos Duros</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
-                        <CheckboxField label="Hipoplasias" field="hipoplasias" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Amelogenesis" field="amelogenesis" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Manchas" field="manchas" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Desgastes" field="desgastes" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Fracturas" field="tdFracturas" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Agenesia" field="agenesia" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Supernumerario" field="supernumerario" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Diente Ausente" field="ausenteObs" checked={!!data.ausenteObs} onChange={(f, v) => handleChange('ausenteObs', v ? 'Sí' : '')} data={data} readOnly={readOnly}>
-                            <input type="text" placeholder="¿Cuáles?" value={data.ausenteObs} onChange={e => handleChange('ausenteObs', e.target.value)} style={commonInputStyle} />
+                        <CheckboxField label="Hipoplasias" field="hipoplasias" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Amelogenesis" field="amelogenesis" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Manchas" field="manchas" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Desgastes" field="desgastes" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Fracturas" field="tdFracturas" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Agenesia" field="agenesia" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Supernumerario" field="supernumerario" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Diente Ausente" field="ausenteObs" checked={!!data.ausenteObs} onChange={(f, v) => handleChange('ausenteObs', v ? 'Sí' : '')} data={data} readOnly={locked}>
+                            <input type="text" placeholder="¿Cuáles?" value={data.ausenteObs} disabled={locked} onChange={e => handleChange('ausenteObs', e.target.value)} style={commonInputStyle} />
                         </CheckboxField>
                     </div>
                 </section>
@@ -148,11 +191,11 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
                 <section>
                     <h4 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1rem', fontWeight: 700 }}>Maxilares</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
-                        <CheckboxField label="Micrognasia" field="micrognasia" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Macrognasia" field="macrognasia" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Torus" field="torus" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Otros" field="maxOtros" checked={!!data.maxOtros} onChange={(f, v) => handleChange('maxOtros', v ? 'Sí' : '')} data={data} readOnly={readOnly}>
-                             <input type="text" placeholder="¿Cuáles?" value={data.maxOtros} onChange={e => handleChange('maxOtros', e.target.value)} style={commonInputStyle} />
+                        <CheckboxField label="Micrognasia" field="micrognasia" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Macrognasia" field="macrognasia" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Torus" field="torus" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Otros" field="maxOtros" checked={!!data.maxOtros} onChange={(f, v) => handleChange('maxOtros', v ? 'Sí' : '')} data={data} readOnly={locked}>
+                             <input type="text" placeholder="¿Cuáles?" value={data.maxOtros} disabled={locked} onChange={e => handleChange('maxOtros', e.target.value)} style={commonInputStyle} />
                         </CheckboxField>
                     </div>
                 </section>
@@ -163,14 +206,14 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
                 <section>
                     <h4 style={{ color: 'var(--primary)', marginBottom: '1rem', fontSize: '1rem', fontWeight: 700 }}>ATM</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
-                        <CheckboxField label="Dolor Articular" field="dolorArticular" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Dolor Muscular" field="dolorMuscular" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Ruidos" field="ruidos" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Limitación de Apertura" field="limitacion" data={data} onChange={handleChange} readOnly={readOnly} />
-                        <CheckboxField label="Desviación" field="desviacion" data={data} onChange={handleChange} readOnly={readOnly} />
+                        <CheckboxField label="Dolor Articular" field="dolorArticular" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Dolor Muscular" field="dolorMuscular" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Ruidos" field="ruidos" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Limitación de Apertura" field="limitacion" data={data} onChange={handleChange} readOnly={locked} />
+                        <CheckboxField label="Desviación" field="desviacion" data={data} onChange={handleChange} readOnly={locked} />
                         <div className="form-group" style={{ gridColumn: 'span 2' }}>
                             <label>Observaciones ATM</label>
-                            <input type="text" value={data.atmObservaciones} onChange={e => handleChange('atmObservaciones', e.target.value)} placeholder="Detalle aquí..." />
+                            <input type="text" value={data.atmObservaciones} disabled={locked} onChange={e => handleChange('atmObservaciones', e.target.value)} placeholder="Detalle aquí..." />
                         </div>
                     </div>
                 </section>
@@ -180,23 +223,23 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         <div className="form-group">
                             <label>S. Mordida Horiz (mm)</label>
-                            <input type="number" step="0.1" value={data.sobremordidaH} onChange={e => handleChange('sobremordidaH', parseFloat(e.target.value))} />
+                            <input type="number" step="0.1" value={data.sobremordidaH} disabled={locked} onChange={e => handleChange('sobremordidaH', parseFloat(e.target.value))} />
                         </div>
                         <div className="form-group">
                             <label>S. Mordida Vert (mm)</label>
-                            <input type="number" step="0.1" value={data.sobremordidaV} onChange={e => handleChange('sobremordidaV', parseFloat(e.target.value))} />
+                            <input type="number" step="0.1" value={data.sobremordidaV} disabled={locked} onChange={e => handleChange('sobremordidaV', parseFloat(e.target.value))} />
                         </div>
                         <div className="form-group" style={{ gridColumn: 'span 2' }}>
                             <label>Tipo de Oclusión</label>
-                            <input type="text" value={data.oclusionTipo} onChange={e => handleChange('oclusionTipo', e.target.value)} placeholder="Ej. Clase I Angle..." />
+                            <input type="text" value={data.oclusionTipo} disabled={locked} onChange={e => handleChange('oclusionTipo', e.target.value)} placeholder="Ej. Clase I Angle..." />
                         </div>
                         <div className="form-group">
                             <label>Línea Media</label>
-                            <input type="text" value={data.lineaMedia} onChange={e => handleChange('lineaMedia', e.target.value)} placeholder="Desviación..." />
+                            <input type="text" value={data.lineaMedia} disabled={locked} onChange={e => handleChange('lineaMedia', e.target.value)} placeholder="Desviación..." />
                         </div>
                         <div className="form-group">
                             <label>Patrón Masticación</label>
-                            <select value={data.patronMasticacion} onChange={e => handleChange('patronMasticacion', e.target.value)}>
+                            <select value={data.patronMasticacion} disabled={locked} onChange={e => handleChange('patronMasticacion', e.target.value)}>
                                 <option value="BILAT">Bilateral</option>
                                 <option value="DER">Derecha</option>
                                 <option value="IZQ">Izquierda</option>
@@ -210,20 +253,21 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.8rem' }}>
                         <div className="form-group">
                             <label>Grado de Higiene Oral</label>
-                            <select value={data.higiene} onChange={e => handleChange('higiene', e.target.value)}>
+                            <select value={data.higiene} disabled={locked} onChange={e => handleChange('higiene', e.target.value)}>
                                 <option value="B">Buena</option>
                                 <option value="R">Regular</option>
                                 <option value="M">Mala</option>
                             </select>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
-                            <CheckboxField label="Halitosis" field="habHalitosis" data={data} onChange={handleChange} readOnly={readOnly} />
-                            <CheckboxField label="Bruxismo" field="bruxismo" data={data} onChange={handleChange} readOnly={readOnly} />
+                            <CheckboxField label="Halitosis" field="habHalitosis" data={data} onChange={handleChange} readOnly={locked} />
+                            <CheckboxField label="Bruxismo" field="bruxismo" data={data} onChange={handleChange} readOnly={locked} />
                         </div>
                         <div className="form-group">
                             <label>Otros Hábitos</label>
                             <textarea
                                 value={data.habOtros}
+                                disabled={locked}
                                 onChange={e => handleChange('habOtros', e.target.value)}
                                 style={{ width: '100%', padding: '0.8rem', border: '1px solid var(--border-color)', borderRadius: '8px', minHeight: '60px', background: 'var(--surface)', color: 'var(--text-main)', resize: 'none' }}
                                 placeholder="Succión digital, deglución atípica..."
@@ -234,7 +278,7 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
             </div>
         </div>
 
-        {!readOnly && (
+        {!locked && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '1.5rem', borderTop: '2px solid var(--border-color)', marginTop: '2rem' }}>
             <button type="submit" disabled={saving} className="btn-primary" style={{ width: 'auto', padding: '0.8rem 2.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: saving ? 0.7 : 1, margin: 0 }}>
               <Save size={18} /> {saving ? 'Guardando...' : 'Guardar Examen'}
@@ -243,6 +287,26 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
             {saved && <span style={{ color: 'var(--success)', fontWeight: 500 }}><CheckCircle size={18} /> Guardado</span>}
           </div>
         )}
+        {/* HU-2: desbloqueo excepcional, solo ADMIN */}
+        {!readOnly && bloqueo.bloqueado && bloqueo.isAdmin && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '1.5rem', borderTop: '2px solid var(--border-color)', marginTop: '2rem' }}>
+            <button
+              type="button"
+              onClick={() => bloqueo.setShowUnlock(true)}
+              style={{ width: 'auto', padding: '0.8rem 2.5rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer', margin: 0 }}
+            >
+              Desbloquear (ADMIN)
+            </button>
+          </div>
+        )}
+        <DesbloqueoModal
+          abierto={bloqueo.showUnlock}
+          seccionNombre="Examen Clínico"
+          onConfirm={(motivo) => bloqueo.solicitar(historiaId, motivo)}
+          onCancel={() => bloqueo.setShowUnlock(false)}
+          error={bloqueo.unlockError}
+          enviando={bloqueo.unlocking}
+        />
     </form>
   );
 };

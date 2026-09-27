@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import clinicaService from '../../services/clinicaService';
 import { Save, CheckCircle2 } from 'lucide-react';
+import { useBloqueoSeccion } from '../../hooks/useBloqueoSeccion';
+import DesbloqueoModal from '../../components/clinica/DesbloqueoModal';
+import { formatFechaCorta } from '../../utils/fechas';
 
 const AnalisisPulparForm = ({ historiaId, readOnly }) => {
   const [data, setData] = useState({
@@ -19,13 +22,18 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [saveError, setSaveError] = useState('');
+  const bloqueo = useBloqueoSeccion('pulpar');
+  const locked = readOnly || bloqueo.bloqueado;
 
   useEffect(() => {
     const loadData = async () => {
       setLoadError('');
       try {
         const res = await clinicaService.getAnalisisPulpar(historiaId);
-        if (res.data) setData(res.data);
+        if (res.data) {
+          setData(res.data);
+          bloqueo.marcarRegistrado(res.data);
+        }
       } catch (err) {
         // 404 = "aún no registrado": estado vacío, no error.
         if (err?.response?.status === 404) return;
@@ -35,6 +43,7 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
       }
     };
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historiaId]);
 
   const handleSave = async () => {
@@ -42,9 +51,11 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
     setSaveError('');
     try {
       await clinicaService.upsertAnalisisPulpar(historiaId, data);
+      bloqueo.marcarGuardado();
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
+      if (err?.response?.status === 409) bloqueo.marcarConflicto();
       setSaveError(err?.response?.data?.message || err?.message || 'Error al guardar análisis pulpar');
     } finally {
       setSaving(false);
@@ -54,17 +65,19 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
   if (loading) return <div className="text-center p-5">Cargando Análisis Pulpar...</div>;
 
   const CheckboxRow = ({ id, label }) => (
-    <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.6rem', borderRadius: '8px', cursor: readOnly ? 'default' : 'pointer', background: 'var(--surface)', border: '1px solid var(--border-color)', transition: 'all 0.2s' }}>
+    <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.6rem', borderRadius: '8px', cursor: locked ? 'default' : 'pointer', background: 'var(--surface)', border: '1px solid var(--border-color)', transition: 'all 0.2s' }}>
       <input 
         type="checkbox" 
         checked={data[id] || false} 
-        onChange={e => !readOnly && setData({ ...data, [id]: e.target.checked })} 
-        disabled={readOnly}
+        onChange={e => !locked && setData({ ...data, [id]: e.target.checked })} 
+        disabled={locked}
         style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
       />
       <span style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>{label}</span>
     </label>
   );
+
+  const fechaBloqueo = formatFechaCorta(data.createdAt);
 
   return (
     <div style={{ background: 'var(--surface)', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)', marginBottom: '2rem' }}>
@@ -82,12 +95,32 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
                 <CheckCircle2 size={18} /> Guardado
               </span>
             )}
-            <button onClick={handleSave} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
-              <Save size={18} /> {saving ? 'Guardando...' : 'Guardar Análisis'}
-            </button>
+            {!locked && (
+              <button onClick={handleSave} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+                <Save size={18} /> {saving ? 'Guardando...' : 'Guardar Análisis'}
+              </button>
+            )}
+            {!readOnly && bloqueo.bloqueado && bloqueo.isAdmin && (
+              <button onClick={() => bloqueo.setShowUnlock(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', background: 'transparent', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
+                Desbloquear (ADMIN)
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {bloqueo.bloqueado && (
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 1.5rem 0' }}>
+          Registro bloqueado
+          {fechaBloqueo ? ` · ${fechaBloqueo}` : ''}
+          {data.createdBy ? ` · ${data.createdBy}` : ''}
+        </p>
+      )}
+      {!bloqueo.bloqueado && bloqueo.desbloqueo && (
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 1.5rem 0' }}>
+          Desbloqueada por {bloqueo.desbloqueo.por}: {bloqueo.desbloqueo.motivo}
+        </p>
+      )}
 
       {loadError && (
         <div style={{ border: '1px solid var(--accent)', background: 'rgba(230, 57, 70, 0.08)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
@@ -111,12 +144,20 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
         <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Observaciones:</label>
         <textarea 
           value={data.observaciones || ''} 
-          onChange={e => !readOnly && setData({ ...data, observaciones: e.target.value })}
-          disabled={readOnly}
+          onChange={e => !locked && setData({ ...data, observaciones: e.target.value })}
+          disabled={locked}
           placeholder="Escriba aquí cualquier observación adicional..."
           style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', color: 'var(--text-main)', minHeight: '100px', resize: 'vertical', fontSize: '1rem' }}
         />
       </div>
+      <DesbloqueoModal
+        abierto={bloqueo.showUnlock}
+        seccionNombre="Análisis Pulpar"
+        error={bloqueo.unlockError}
+        enviando={bloqueo.unlocking}
+        onCancel={() => bloqueo.setShowUnlock(false)}
+        onConfirm={(motivo) => bloqueo.solicitar(historiaId, motivo)}
+      />
     </div>
   );
 };

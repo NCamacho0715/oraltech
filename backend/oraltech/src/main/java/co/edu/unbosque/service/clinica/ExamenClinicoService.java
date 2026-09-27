@@ -4,6 +4,7 @@ import co.edu.unbosque.dto.clinica.ExamenClinicoRequest;
 import co.edu.unbosque.dto.clinica.ExamenClinicoResponse;
 import co.edu.unbosque.entity.clinica.ExamenClinico;
 import co.edu.unbosque.entity.clinica.HistoriaClinica;
+import co.edu.unbosque.entity.clinica.SeccionHistoria;
 import co.edu.unbosque.entity.enums.HigieneGrado;
 import co.edu.unbosque.entity.enums.PatronMasticacion;
 import co.edu.unbosque.entity.enums.TejidoEstado;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -23,6 +25,7 @@ public class ExamenClinicoService {
     private final ExamenClinicoRepository repo;
     private final HistoriaClinicaService historiaService;
     private final HistoriaClinicaGuard guard;
+    private final DesbloqueoService desbloqueoService;
 
     @Transactional
     public ExamenClinicoResponse upsert(UUID historiaId, ExamenClinicoRequest req) {
@@ -30,7 +33,14 @@ public class ExamenClinicoService {
         guard.requireActiva(historia);
         guard.registrarActividad(historia);
 
-        ExamenClinico ex = repo.findByHistoriaClinicaId(historiaId)
+        boolean desbloqueado = desbloqueoService.consumirSiVigente(historiaId, SeccionHistoria.EXAMEN);
+        Optional<ExamenClinico> existente = repo.findByHistoriaClinicaId(historiaId);
+        if (existente.isPresent() && !desbloqueado) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    SeccionHistoria.EXAMEN.mensajeBloqueo());
+        }
+
+        ExamenClinico ex = existente
                 .orElseGet(() -> {
                     ExamenClinico e = new ExamenClinico();
                     e.setHistoriaClinica(historia);
