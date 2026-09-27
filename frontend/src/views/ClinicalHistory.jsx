@@ -23,6 +23,9 @@ import ConsentimientoSection from "./sections/ConsentimientoSection";
 import DiagnosticoTab from "./sections/DiagnosticoTab";
 import PlanTratamientoSection from "./sections/PlanTratamientoSection";
 
+const formatFechaHora = (valor) =>
+  valor ? new Date(valor).toLocaleString() : "—";
+
 const ClinicalHistory = () => {
   const { id: patientId } = useParams();
   const navigate = useNavigate();
@@ -153,6 +156,23 @@ const ClinicalHistory = () => {
             </h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem" }}>
               ID Historia: {historia.id}
+            </p>
+            <p
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "0.85rem",
+                marginTop: "0.3rem",
+              }}
+              title="Profesional responsable y fecha de la última modificación"
+            >
+              Última modificación:{" "}
+              {formatFechaHora(historia.updatedAt || historia.createdAt)}
+              {(historia.updatedBy || historia.createdBy) && (
+                <>
+                  {" "}
+                  · {historia.updatedBy || historia.createdBy}
+                </>
+              )}
             </p>
           </div>
         </div>

@@ -5,6 +5,8 @@ import co.edu.unbosque.entity.enums.EstadoHistoria;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.data.auditing.AuditingHandler;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -14,11 +16,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class HistoriaClinicaGuardTest {
 
+    private AuditingHandler auditingHandler;
     private HistoriaClinicaGuard guard;
 
     @BeforeEach
     void setUp() {
-        guard = new HistoriaClinicaGuard();
+        auditingHandler = Mockito.mock(AuditingHandler.class);
+        guard = new HistoriaClinicaGuard(auditingHandler);
     }
 
     @Test
@@ -88,5 +92,17 @@ class HistoriaClinicaGuardTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
         assertTrue(ex.getReason().contains("no es una cadena Base64 válida"));
+    }
+
+    @Test
+    @DisplayName("UT-GUARD-07: registrarActividad debería delegar en el AuditingHandler de Spring (markModified)")
+    void shouldDelegateToAuditingHandlerWhenRegistrarActividad() {
+        HistoriaClinica historia = HistoriaClinica.builder()
+                .estado(EstadoHistoria.ACTIVA)
+                .build();
+
+        guard.registrarActividad(historia);
+
+        Mockito.verify(auditingHandler).markModified(historia);
     }
 }

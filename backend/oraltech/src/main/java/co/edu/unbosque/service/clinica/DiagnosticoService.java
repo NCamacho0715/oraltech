@@ -25,6 +25,7 @@ public class DiagnosticoService {
     public DiagnosticoResponse upsert(UUID historiaId, DiagnosticoRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
         Diagnostico d = repo.findByHistoriaClinicaId(historiaId)
                 .orElseGet(() -> {
@@ -63,6 +64,10 @@ public class DiagnosticoService {
                 .funcional(d.getFuncional())
                 .esqueleticoFacial(d.getEsqueleticoFacial())
                 .otros(d.getOtros())
+                .createdAt(d.getAudit().getCreatedAt())
+                .createdBy(d.getAudit().getCreatedBy())
+                .updatedAt(d.getAudit().getUpdatedAt())
+                .updatedBy(d.getAudit().getUpdatedBy())
                 .build();
     }
 }

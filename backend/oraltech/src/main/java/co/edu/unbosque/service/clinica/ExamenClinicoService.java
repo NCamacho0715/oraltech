@@ -28,6 +28,7 @@ public class ExamenClinicoService {
     public ExamenClinicoResponse upsert(UUID historiaId, ExamenClinicoRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
         ExamenClinico ex = repo.findByHistoriaClinicaId(historiaId)
                 .orElseGet(() -> {
@@ -143,6 +144,10 @@ public class ExamenClinicoService {
                 .habHalitosis(e.getHabHalitosis())
                 .bruxismo(e.getBruxismo())
                 .habOtros(e.getHabOtros())
+                .createdAt(e.getAudit().getCreatedAt())
+                .createdBy(e.getAudit().getCreatedBy())
+                .updatedAt(e.getAudit().getUpdatedAt())
+                .updatedBy(e.getAudit().getUpdatedBy())
                 .build();
     }
 

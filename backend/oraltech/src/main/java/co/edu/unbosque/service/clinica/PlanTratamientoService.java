@@ -32,6 +32,7 @@ public class PlanTratamientoService {
     public PlanTratamientoResponse create(UUID historiaId, PlanTratamientoRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
         User odontologo = userRepo.findById(req.getOdontologoId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Odontólogo no encontrado"));
@@ -71,6 +72,9 @@ public class PlanTratamientoService {
                         .descripcion(i.getDescripcion())
                         .tarifa(i.getTarifa())
                         .total(i.getTotal())
+                        // PlanItem no tiene auditoría propia: la UI muestra la fecha de creación
+                        // del plan al que pertenece (evita "Invalid date" en la tarjeta).
+                        .createdAt(p.getAudit() != null ? p.getAudit().getCreatedAt() : null)
                         .build())
                 .collect(Collectors.toList());
 
@@ -80,6 +84,10 @@ public class PlanTratamientoService {
                 .odontologoNombre(p.getOdontologo().getName())
                 .fecha(p.getFecha())
                 .items(items)
+                .createdAt(p.getAudit().getCreatedAt())
+                .createdBy(p.getAudit().getCreatedBy())
+                .updatedAt(p.getAudit().getUpdatedAt())
+                .updatedBy(p.getAudit().getUpdatedBy())
                 .build();
     }
 }

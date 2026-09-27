@@ -3,6 +3,8 @@ package co.edu.unbosque.dto.clinica;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 public class AnalisisPeriodontalResponse {
@@ -19,4 +21,9 @@ public class AnalisisPeriodontalResponse {
     private Boolean exudadoSupuracion;
     private Boolean inflamacion;
     private Boolean cambioColor;
+
+    private LocalDateTime createdAt;
+    private String createdBy;
+    private LocalDateTime updatedAt;
+    private String updatedBy;
 }

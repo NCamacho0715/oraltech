@@ -31,6 +31,7 @@ public class EvolucionClinicaService {
     public EvolucionClinicaResponse create(UUID historiaId, EvolucionClinicaRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
         // Validate signatures
         guard.validateSignatureSize(req.getFirmaPaciente(), "firmaPaciente");
@@ -88,6 +89,10 @@ public class EvolucionClinicaService {
                 .observaciones(e.getObservaciones())
                 .abono(e.getAbono())
                 .saldo(e.getSaldo())
+                .createdAt(e.getAudit().getCreatedAt())
+                .createdBy(e.getAudit().getCreatedBy())
+                .updatedAt(e.getAudit().getUpdatedAt())
+                .updatedBy(e.getAudit().getUpdatedBy())
                 .build();
     }
 
@@ -103,6 +108,10 @@ public class EvolucionClinicaService {
                 .saldo(e.getSaldo())
                 .firmaPaciente(e.getFirmaPaciente())
                 .firmaOdontologo(e.getFirmaOdontologo())
+                .createdAt(e.getAudit().getCreatedAt())
+                .createdBy(e.getAudit().getCreatedBy())
+                .updatedAt(e.getAudit().getUpdatedAt())
+                .updatedBy(e.getAudit().getUpdatedBy())
                 .build();
     }
 }

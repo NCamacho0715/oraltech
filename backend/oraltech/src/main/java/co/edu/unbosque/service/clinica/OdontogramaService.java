@@ -32,6 +32,7 @@ public class OdontogramaService {
     public OdontogramaRegistroResponse create(UUID historiaId, OdontogramaRegistroRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
         EvolucionClinica evolucion = null;
         if (req.getEvolucionId() != null) {
@@ -80,6 +81,7 @@ public class OdontogramaService {
     public void delete(UUID historiaId, Long registroId) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
         OdontogramaRegistro registro = repo.findById(registroId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro no encontrado"));
@@ -101,6 +103,10 @@ public class OdontogramaService {
                 .estado(r.getEstado().name())
                 .fecha(r.getFecha())
                 .observacion(r.getObservacion())
+                .createdAt(r.getAudit().getCreatedAt())
+                .createdBy(r.getAudit().getCreatedBy())
+                .updatedAt(r.getAudit().getUpdatedAt())
+                .updatedBy(r.getAudit().getUpdatedBy())
                 .build();
     }
 }

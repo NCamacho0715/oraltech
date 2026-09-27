@@ -25,6 +25,7 @@ public class ConsentimientoService {
     public ConsentimientoResponse upsert(UUID historiaId, ConsentimientoRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
         // Validate signatures
         guard.validateSignatureSize(req.getFirmaPaciente(), "firmaPaciente");
@@ -69,6 +70,10 @@ public class ConsentimientoService {
                 .firmaPaciente(c.getFirmaPaciente())
                 .firmaOdontologo(c.getFirmaOdontologo())
                 .firmaTestigo(c.getFirmaTestigo())
+                .createdAt(c.getAudit().getCreatedAt())
+                .createdBy(c.getAudit().getCreatedBy())
+                .updatedAt(c.getAudit().getUpdatedAt())
+                .updatedBy(c.getAudit().getUpdatedBy())
                 .build();
     }
 }

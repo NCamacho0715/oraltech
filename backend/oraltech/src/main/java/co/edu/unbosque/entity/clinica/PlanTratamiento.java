@@ -3,12 +3,14 @@ package co.edu.unbosque.entity.clinica;
 import co.edu.unbosque.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "plan_tratamiento")
 @Data
 @Builder
@@ -42,9 +44,5 @@ public class PlanTratamiento {
     @PrePersist
     public void prePersist() {
         if (this.fecha == null) this.fecha = LocalDate.now();
-        this.audit.prePersist();
     }
-
-    @PreUpdate
-    public void preUpdate() { this.audit.preUpdate(); }
 }

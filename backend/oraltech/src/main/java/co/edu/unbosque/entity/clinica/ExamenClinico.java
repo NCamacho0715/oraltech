@@ -5,10 +5,12 @@ import co.edu.unbosque.entity.enums.PatronMasticacion;
 import co.edu.unbosque.entity.enums.TejidoEstado;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "examen_clinico")
 @Data
 @Builder
@@ -109,9 +111,4 @@ public class ExamenClinico {
     @Builder.Default
     private AuditFields audit = new AuditFields();
 
-    @PrePersist
-    public void prePersist() { this.audit.prePersist(); }
-
-    @PreUpdate
-    public void preUpdate() { this.audit.preUpdate(); }
 }

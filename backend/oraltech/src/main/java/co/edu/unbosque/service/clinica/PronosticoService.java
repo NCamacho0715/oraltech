@@ -25,6 +25,7 @@ public class PronosticoService {
     public PronosticoResponse upsert(UUID historiaId, PronosticoRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
         Pronostico p = repo.findByHistoriaClinicaId(historiaId)
                 .orElseGet(() -> {
@@ -48,6 +49,10 @@ public class PronosticoService {
         return PronosticoResponse.builder()
                 .id(p.getId())
                 .descripcion(p.getDescripcion())
+                .createdAt(p.getAudit().getCreatedAt())
+                .createdBy(p.getAudit().getCreatedBy())
+                .updatedAt(p.getAudit().getUpdatedAt())
+                .updatedBy(p.getAudit().getUpdatedBy())
                 .build();
     }
 }

@@ -2,11 +2,13 @@ package co.edu.unbosque.entity.clinica;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "evolucion_clinica")
 @Data
 @Builder
@@ -56,9 +58,5 @@ public class EvolucionClinica {
     @PrePersist
     public void prePersist() {
         if (this.fecha == null) this.fecha = LocalDate.now();
-        this.audit.prePersist();
     }
-
-    @PreUpdate
-    public void preUpdate() { this.audit.preUpdate(); }
 }

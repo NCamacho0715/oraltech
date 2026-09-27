@@ -78,6 +78,10 @@ public class HistoriaClinicaService {
                 .odontologoNombre(h.getOdontologo().getName())
                 .fechaApertura(h.getFechaApertura())
                 .estado(h.getEstado().name())
+                .createdAt(h.getAudit().getCreatedAt())
+                .createdBy(h.getAudit().getCreatedBy())
+                .updatedAt(h.getAudit().getUpdatedAt())
+                .updatedBy(h.getAudit().getUpdatedBy())
                 .build();
     }
 }

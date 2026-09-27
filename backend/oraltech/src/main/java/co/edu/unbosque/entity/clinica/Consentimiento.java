@@ -2,10 +2,12 @@ package co.edu.unbosque.entity.clinica;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "consentimiento")
 @Data
 @Builder
@@ -54,9 +56,5 @@ public class Consentimiento {
     @PrePersist
     public void prePersist() {
         if (this.fecha == null) this.fecha = LocalDate.now();
-        this.audit.prePersist();
     }
-
-    @PreUpdate
-    public void preUpdate() { this.audit.preUpdate(); }
 }

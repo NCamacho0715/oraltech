@@ -4,10 +4,12 @@ import co.edu.unbosque.entity.enums.EstadoEvento;
 import co.edu.unbosque.entity.enums.TipoEvento;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "odontograma_registro")
 @Data
 @Builder
@@ -54,9 +56,5 @@ public class OdontogramaRegistro {
     public void prePersist() {
         if (this.fecha == null) this.fecha = LocalDate.now();
         if (this.estado == null) this.estado = EstadoEvento.ACTIVO;
-        this.audit.prePersist();
     }
-
-    @PreUpdate
-    public void preUpdate() { this.audit.preUpdate(); }
 }

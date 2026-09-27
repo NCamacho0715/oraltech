@@ -21,6 +21,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.auditing.AuditingHandler;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
@@ -119,6 +120,10 @@ public abstract class AbstractClinicalContractTest {
     @MockBean protected PatientRepository patientRepository;
     @MockBean protected UserRepository userRepository;
     @MockBean protected JwtService jwtService;
+
+    // Este slice no monta el JPA auditing (@EnableJpaAuditing); el guard necesita el
+    // AuditingHandler para registrar la actividad de la historia al guardar secciones.
+    @MockBean protected AuditingHandler auditingHandler;
 
     protected static final UUID HC_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     protected static final Long PATIENT_ID = 1L;

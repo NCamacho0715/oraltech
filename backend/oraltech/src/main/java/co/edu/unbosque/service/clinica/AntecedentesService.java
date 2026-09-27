@@ -25,6 +25,7 @@ public class AntecedentesService {
     public AntecedentesResponse upsert(UUID historiaId, AntecedentesRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
         // Pregnancy validation: only if patient is female
         if (Boolean.TRUE.equals(req.getEmbarazo())) {
@@ -157,6 +158,10 @@ public class AntecedentesService {
                 .ultimaVisita(a.getUltimaVisita())
                 .motivoVisita(a.getMotivoVisita())
                 .observaciones(a.getObservaciones())
+                .createdAt(a.getAudit().getCreatedAt())
+                .createdBy(a.getAudit().getCreatedBy())
+                .updatedAt(a.getAudit().getUpdatedAt())
+                .updatedBy(a.getAudit().getUpdatedBy())
                 .build();
     }
 }

@@ -25,6 +25,7 @@ public class OdontogramaProtesisService {
     public OdontogramaProtesisResponse upsert(UUID historiaId, OdontogramaProtesisRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
         OdontogramaProtesis op = repo.findByHistoriaClinicaId(historiaId)
                 .orElseGet(() -> {
@@ -63,6 +64,10 @@ public class OdontogramaProtesisService {
                 .removibleMetInferior(op.getRemovibleMetInferior())
                 .fijaSuperior(op.getFijaSuperior())
                 .fijaInferior(op.getFijaInferior())
+                .createdAt(op.getAudit().getCreatedAt())
+                .createdBy(op.getAudit().getCreatedBy())
+                .updatedAt(op.getAudit().getUpdatedAt())
+                .updatedBy(op.getAudit().getUpdatedBy())
                 .build();
     }
 }

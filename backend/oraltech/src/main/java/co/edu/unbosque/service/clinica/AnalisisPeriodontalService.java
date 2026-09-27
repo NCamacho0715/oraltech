@@ -23,6 +23,7 @@ public class AnalisisPeriodontalService {
     public AnalisisPeriodontalResponse upsert(UUID historiaId, AnalisisPeriodontalRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
         AnalisisPeriodontal entity = repo.findByHistoriaClinicaId(historiaId)
                 .orElseGet(() -> {
@@ -69,6 +70,10 @@ public class AnalisisPeriodontalService {
                 .exudadoSupuracion(a.getExudadoSupuracion())
                 .inflamacion(a.getInflamacion())
                 .cambioColor(a.getCambioColor())
+                .createdAt(a.getAudit().getCreatedAt())
+                .createdBy(a.getAudit().getCreatedBy())
+                .updatedAt(a.getAudit().getUpdatedAt())
+                .updatedBy(a.getAudit().getUpdatedBy())
                 .build();
     }
 }
