@@ -207,7 +207,7 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
               <button
                 onClick={handleSaveProtesis}
                 disabled={savingProtesis}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px var(--primary-soft)', transition: 'all 0.3s', opacity: savingProtesis ? 0.7 : 1 }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px var(--primary-soft)', transition: 'background-color 0.3s, border-color 0.3s, color 0.3s, transform 0.3s, box-shadow 0.3s, opacity 0.3s', opacity: savingProtesis ? 0.7 : 1 }}
                 onMouseEnter={e => !savingProtesis && (e.currentTarget.style.transform = 'translateY(-2px)')}
                 onMouseLeave={e => !savingProtesis && (e.currentTarget.style.transform = 'translateY(0)')}
               >

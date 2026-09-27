@@ -68,7 +68,7 @@ const AnalisisPeriodontalForm = ({ historiaId, readOnly }) => {
   if (loading) return <div className="text-center p-5">Cargando Análisis Periodontal...</div>;
 
   const CheckboxRow = ({ id, label }) => (
-    <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem', borderRadius: '10px', cursor: locked ? 'default' : 'pointer', background: 'var(--surface)', border: '1px solid var(--border-color)', transition: 'all 0.2s', boxShadow: 'var(--shadow-sm)' }}>
+    <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem', borderRadius: '10px', cursor: locked ? 'default' : 'pointer', background: 'var(--surface)', border: '1px solid var(--border-color)', transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, opacity 0.2s', boxShadow: 'var(--shadow-sm)' }}>
       <input 
         type="checkbox" 
         checked={data[id] || false} 

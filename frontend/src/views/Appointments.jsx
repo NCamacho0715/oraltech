@@ -116,7 +116,7 @@ const Modal = ({ children, onClose }) => (
       inset: 0,
       zIndex: 1000,
       background: "rgba(0,0,0,0.5)",
-      backdropFilter: "blur(4px)",
+      backdropFilter: "none",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
@@ -603,7 +603,7 @@ const Appointments = () => {
                 @keyframes toastIn { from { transform: translateY(20px); opacity:0 } to { transform: translateY(0); opacity:1 } }
                 .appt-cell:hover { background: var(--secondary-soft) !important; cursor: pointer; }
                 .appt-block:hover { filter: brightness(1.08); cursor: pointer; transform: scale(1.01); }
-                .appt-block { transition: all 0.15s ease; }
+                .appt-block { transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease; }
                 select, input, textarea { color-scheme: inherit; }
                 ::-webkit-scrollbar { width: 6px; height: 6px; }
                 ::-webkit-scrollbar-track { background: transparent; }

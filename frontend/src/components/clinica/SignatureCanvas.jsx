@@ -8,7 +8,10 @@ const SignatureCanvas = ({
   label = "Firma",
 }) => {
   const canvasRef = useRef(null);
-  const isDrawing = useState(false);
+  // Refs (no estados): el trazo genera decenas de eventos por segundo y no
+  // debe re-renderizar el componente en cada mousemove.
+  const isDrawing = useRef(false);
+  const drewStroke = useRef(false);
   const [isEmpty, setIsEmpty] = useState(true);
 
   useEffect(() => {
@@ -36,6 +39,7 @@ const SignatureCanvas = ({
     ctx.beginPath();
     ctx.moveTo(x, y);
     isDrawing.current = true;
+    drewStroke.current = false;
   };
 
   const draw = (e) => {
@@ -45,11 +49,15 @@ const SignatureCanvas = ({
     const ctx = canvasRef.current.getContext("2d");
     ctx.lineTo(x, y);
     ctx.stroke();
-    setIsEmpty(false);
+    drewStroke.current = true;
   };
 
   const stopDrawing = () => {
     isDrawing.current = false;
+    if (drewStroke.current) {
+      drewStroke.current = false;
+      setIsEmpty(false);
+    }
   };
 
   const clear = () => {

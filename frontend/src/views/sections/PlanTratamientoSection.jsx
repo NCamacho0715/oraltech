@@ -419,7 +419,7 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
               borderRadius: "12px",
               border: "1px solid var(--border-color)",
               boxShadow: "var(--shadow)",
-              transition: "all 0.3s ease",
+              transition: "background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease",
             }}
             onMouseEnter={(e) =>
               (e.currentTarget.style.borderColor = "var(--primary-light)")
