@@ -55,6 +55,11 @@ class DiagnosticoServiceTest {
         request.setDental("K021 Caries de la dentina");
         request.setPeriodontal("K051 Gingivitis crónica");
         request.setPulpar("Pulpitis reversible");
+        request.setArticular("Sin alteraciones articulares");
+        request.setTejidosBlandos("Mucosa sana, sin lesiones");
+        request.setFuncional("Oclusión estable");
+        request.setEsqueleticoFacial("Perfil simétrico");
+        request.setOtros("Sensibilidad cervical");
 
         entity = new Diagnostico();
         entity.setId(50L);
@@ -62,6 +67,11 @@ class DiagnosticoServiceTest {
         entity.setDental("K021 Caries de la dentina");
         entity.setPeriodontal("K051 Gingivitis crónica");
         entity.setPulpar("Pulpitis reversible");
+        entity.setArticular("Sin alteraciones articulares");
+        entity.setTejidosBlandos("Mucosa sana, sin lesiones");
+        entity.setFuncional("Oclusión estable");
+        entity.setEsqueleticoFacial("Perfil simétrico");
+        entity.setOtros("Sensibilidad cervical");
     }
 
     @Test
@@ -77,7 +87,36 @@ class DiagnosticoServiceTest {
         assertNotNull(response);
         assertEquals("K021 Caries de la dentina", response.getDental());
         assertEquals("K051 Gingivitis crónica", response.getPeriodontal());
+        assertEquals("Pulpitis reversible", response.getPulpar());
+        assertEquals("Sin alteraciones articulares", response.getArticular());
+        assertEquals("Mucosa sana, sin lesiones", response.getTejidosBlandos());
+        assertEquals("Oclusión estable", response.getFuncional());
+        assertEquals("Perfil simétrico", response.getEsqueleticoFacial());
+        assertEquals("Sensibilidad cervical", response.getOtros());
         verify(repo, times(1)).save(any(Diagnostico.class));
+    }
+
+    @Test
+    @DisplayName("UT-DIAG-01b: Debería persistir los 8 campos (round-trip) al guardar")
+    void shouldPersistAllEightFieldsRoundTrip() {
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        doNothing().when(guard).requireActiva(historiaActiva);
+        when(repo.findByHistoriaClinicaId(historiaId)).thenReturn(Optional.empty());
+        when(repo.save(any(Diagnostico.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // La entidad guardada debe recibir los 8 campos del request (round-trip).
+        org.mockito.ArgumentCaptor<Diagnostico> captor = org.mockito.ArgumentCaptor.forClass(Diagnostico.class);
+        service.upsert(historiaId, request);
+        verify(repo, times(1)).save(captor.capture());
+        Diagnostico saved = captor.getValue();
+        assertEquals(request.getDental(), saved.getDental());
+        assertEquals(request.getPeriodontal(), saved.getPeriodontal());
+        assertEquals(request.getPulpar(), saved.getPulpar());
+        assertEquals(request.getArticular(), saved.getArticular());
+        assertEquals(request.getTejidosBlandos(), saved.getTejidosBlandos());
+        assertEquals(request.getFuncional(), saved.getFuncional());
+        assertEquals(request.getEsqueleticoFacial(), saved.getEsqueleticoFacial());
+        assertEquals(request.getOtros(), saved.getOtros());
     }
 
     @Test
@@ -116,6 +155,13 @@ class DiagnosticoServiceTest {
 
         assertNotNull(response);
         assertEquals("K021 Caries de la dentina", response.getDental());
+        assertEquals("K051 Gingivitis crónica", response.getPeriodontal());
+        assertEquals("Pulpitis reversible", response.getPulpar());
+        assertEquals("Sin alteraciones articulares", response.getArticular());
+        assertEquals("Mucosa sana, sin lesiones", response.getTejidosBlandos());
+        assertEquals("Oclusión estable", response.getFuncional());
+        assertEquals("Perfil simétrico", response.getEsqueleticoFacial());
+        assertEquals("Sensibilidad cervical", response.getOtros());
     }
 
     @Test

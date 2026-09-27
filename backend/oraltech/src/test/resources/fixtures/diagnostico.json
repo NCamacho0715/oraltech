@@ -1,6 +1,11 @@
 {
   "_comment": "Este objeto debe mantenerse idéntico al payload que construye frontend/src/views/sections/DiagnosticoTab.jsx. Si agregas un campo en la UI, agrégalo aquí en el mismo commit.",
-  "descripcion": "Caries dental en diente 46 y gingivitis marginal",
-  "cie10": "K02.1",
+  "dental": "K02.1 Caries de la dentina en diente 46",
+  "periodontal": "K05.1 Gingivitis crónica marginal",
+  "pulpar": "Pulpitis reversible en premolares",
+  "articular": "Sin alteraciones articulares",
+  "tejidosBlandos": "Mucosa sana, sin lesiones",
+  "funcional": "Oclusión estable",
+  "esqueleticoFacial": "Perfil simétrico, sin asimetrías",
   "otros": "Sensibilidad cervical en premolares"
 }

@@ -182,7 +182,7 @@ class ClinicalContractTest extends AbstractClinicalContractTest {
     // ──────────────────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Contrato [Falla detectando desalineación]: Interconsulta -> POST /interconsultas (falta campo especialidad)")
+    @DisplayName("Contrato: Interconsulta (DiagnosticoTab.jsx) -> POST /interconsultas -> Interconsulta")
     void contractInterconsulta() throws Exception {
         String fixture = loadFixture("interconsulta.json");
 
@@ -317,15 +317,19 @@ class ClinicalContractTest extends AbstractClinicalContractTest {
         }
 
         @Test
-        @DisplayName("Inverso [Falla por campo faltante]: Interconsulta debe exponer 'especialidad'")
+        @DisplayName("Inverso: Interconsulta debe exponer 'descripcion' (sin campo 'especialidad')")
         void inverseContractInterconsulta() {
             Interconsulta inter = Interconsulta.builder()
                     .id(1L)
                     .historiaClinica(historiaActiva)
+                    .descripcion("Valoración de bolsas vestibulares")
                     .build();
 
             JsonNode node = objectMapper.valueToTree(inter);
-            assertNotNull(node.get("especialidad"), "Interconsulta serializada debe exponer 'especialidad' que la UI lee");
+            assertNotNull(node.get("descripcion"), "Interconsulta serializada debe exponer 'descripcion' que la UI lee");
+            assertEquals("Valoración de bolsas vestibulares", node.get("descripcion").asText());
+            // Decisión de modelo (docs/diagnostico-modelo.md): no existe 'especialidad' en el backend ni en la UI.
+            assertNull(node.get("especialidad"), "Interconsulta no debe exponer 'especialidad' (campo eliminado)");
         }
     }
 }
