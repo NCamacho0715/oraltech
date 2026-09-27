@@ -75,6 +75,10 @@ class AuditoriaTrazabilidadTest {
     private Long pacienteId;
     private Long odontologoId;
     private UUID historiaId;
+    private Long drAndreaId;
+    private boolean drAndreaCreado;
+    private Long drCarlosId;
+    private boolean drCarlosCreado;
 
     @BeforeEach
     void prepararPacienteYOdontologo() {
@@ -96,6 +100,31 @@ class AuditoriaTrazabilidadTest {
                 .email("audit_" + sufijo + "@oraltech.test")
                 .role(User.Role.DENTIST)
                 .build()).getId();
+
+        // POST /api/historias resuelve el odontólogo desde el usuario autenticado
+        // (ya no del body): los usuarios de las sesiones simuladas deben existir.
+        drAndreaId = asegurarUsuario("dr_andrea", "dr_andrea@oraltech.test", "Dra. Andrea Pruebas");
+        drAndreaCreado = creadoAhora;
+        drCarlosId = asegurarUsuario("dr_carlos", "dr_carlos@oraltech.test", "Dr. Carlos Pruebas");
+        drCarlosCreado = creadoAhora;
+    }
+
+    private boolean creadoAhora;
+
+    private Long asegurarUsuario(String username, String email, String name) {
+        java.util.Optional<User> existente = userRepository.findByUsername(username);
+        if (existente.isPresent()) {
+            creadoAhora = false;
+            return existente.get().getId();
+        }
+        creadoAhora = true;
+        return userRepository.save(User.builder()
+                .username(username)
+                .password("solo-para-pruebas")
+                .name(name)
+                .email(email)
+                .role(User.Role.DENTIST)
+                .build()).getId();
     }
 
     @AfterEach
@@ -110,6 +139,15 @@ class AuditoriaTrazabilidadTest {
         if (odontologoId != null) {
             userRepository.deleteById(odontologoId);
         }
+        // Solo se eliminan si este test los creó (si ya existían, se conservan).
+        if (drAndreaCreado && drAndreaId != null) {
+            userRepository.deleteById(drAndreaId);
+        }
+        if (drCarlosCreado && drCarlosId != null) {
+            userRepository.deleteById(drCarlosId);
+        }
+        drAndreaCreado = false;
+        drCarlosCreado = false;
         historiaId = null;
     }
 

@@ -18,6 +18,7 @@ import ExamenClinicoForm from "./sections/ExamenClinicoForm";
 import OdontogramaSection from "./sections/OdontogramaSection";
 import AnalisisPulparForm from "./sections/AnalisisPulparForm";
 import AnalisisPeriodontalForm from "./sections/AnalisisPeriodontalForm";
+import ExamenComplementarioForm from "./sections/ExamenComplementarioForm";
 import EvolucionesSection from "./sections/EvolucionesSection";
 import ConsentimientoSection from "./sections/ConsentimientoSection";
 import DiagnosticoTab from "./sections/DiagnosticoTab";
@@ -175,6 +176,7 @@ const ClinicalHistory = () => {
     { id: "odontograma", label: "Odontograma", icon: Table },
     { id: "pulpar", label: "Análisis Pulpar", icon: ClipboardList },
     { id: "periodontal", label: "Análisis Periodontal", icon: ClipboardList },
+    { id: "complementario", label: "Exám. Complementarios", icon: ClipboardList },
     { id: "diagnostico", label: "Diagnostico", icon: ClipboardList },
     { id: "plan", label: "Plan de Tratamiento", icon: ListChecks },
     { id: "evoluciones", label: "Evoluciones", icon: FileCheck },
@@ -384,6 +386,12 @@ const ClinicalHistory = () => {
           )}
           {activeTab === "periodontal" && (
             <AnalisisPeriodontalForm
+              historiaId={historia.id}
+              readOnly={isClosed}
+            />
+          )}
+          {activeTab === "complementario" && (
+            <ExamenComplementarioForm
               historiaId={historia.id}
               readOnly={isClosed}
             />

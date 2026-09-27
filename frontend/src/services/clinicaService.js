@@ -188,6 +188,17 @@ const clinicaService = {
     axios.put(`${API_URL}/historias/${historiaId}/analisis-periodontal`, data, {
       headers: getAuthHeader(),
     }),
+
+  // Exámenes Complementarios (HU-4, sección inmutable: crear-una-vez)
+  getExamenComplementario: (historiaId) =>
+    axios.get(`${API_URL}/historias/${historiaId}/examen-complementario`, {
+      headers: getAuthHeader(),
+    }),
+
+  upsertExamenComplementario: (historiaId, data) =>
+    axios.put(`${API_URL}/historias/${historiaId}/examen-complementario`, data, {
+      headers: getAuthHeader(),
+    }),
 };
 
 export default clinicaService;
