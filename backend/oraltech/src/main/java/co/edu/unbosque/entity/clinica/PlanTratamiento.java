@@ -1,5 +1,6 @@
 package co.edu.unbosque.entity.clinica;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import co.edu.unbosque.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -33,7 +34,11 @@ public class PlanTratamiento {
     @Column(nullable = false)
     private LocalDate fecha;
 
+    @Column(columnDefinition = "TEXT")
+    private String descripcion;
+
     @OneToMany(mappedBy = "plan", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, orphanRemoval = true)
+    @JsonManagedReference
     @Builder.Default
     private List<PlanItem> items = new ArrayList<>();
 

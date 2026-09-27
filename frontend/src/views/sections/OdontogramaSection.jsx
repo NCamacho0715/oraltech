@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Odontogram from '../../components/clinica/Odontogram';
 import clinicaService from '../../services/clinicaService';
+import { formatFechaCorta } from '../../utils/fechas';
 import { Trash2, AlertCircle, Save, CheckCircle2 } from 'lucide-react';
 
 const OdontogramaSection = ({ historiaId, readOnly }) => {
@@ -119,7 +120,7 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
                   }}>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontWeight: 700 }}>Diente {e.numeroDiente} ({e.cara}) — <span style={{ color: 'var(--primary)' }}>{e.observacion || e.tipoEvento}</span></span>
-                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{e.fecha ? new Date(e.fecha).toLocaleDateString() : 'Añadido hoy'}</span>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{e.fecha ? formatFechaCorta(e.fecha) || 'Añadido hoy' : 'Añadido hoy'}</span>
                       </div>
                       {!readOnly && (
                           <button onClick={() => setDeleteConfirm(e.id)} style={{ padding: '0.5rem', background: 'transparent', color: 'var(--accent)', borderRadius: '8px' }}>

@@ -1,5 +1,6 @@
 package co.edu.unbosque.controller.clinica.contract;
 
+import co.edu.unbosque.dto.clinica.PlanTratamientoResponse;
 import co.edu.unbosque.entity.clinica.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.DisplayName;
@@ -7,11 +8,19 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -177,8 +186,8 @@ class ClinicalContractTest extends AbstractClinicalContractTest {
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Los siguientes tests exponen los bugs de US-01, US-02, US-03 e interconsulta
-    // Falla si alguna clave del fixture no corresponde a una propiedad No-null de la entidad.
+    // Contratos de las historias de modelo (diagnóstico, evoluciones, plan e interconsulta):
+    // el fixture debe mapear 1:1 a propiedades no nulas de la entidad guardada.
     // ──────────────────────────────────────────────────────────────────────────
 
     @Test
@@ -227,37 +236,47 @@ class ClinicalContractTest extends AbstractClinicalContractTest {
     }
 
     @Test
-    @DisplayName("Contrato [US-01 Plan]: PlanTratamientoSection.jsx -> POST /plan -> PlanTratamiento + PlanItem")
+    @DisplayName("Contrato [US Plan]: PlanTratamientoSection.jsx -> POST /plan -> PlanTratamiento + PlanItem")
     void contractPlanTratamiento() throws Exception {
         String fixture = loadFixture("plan.json");
 
-        mockMvc.perform(post("/api/historias/" + HC_ID + "/plan")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(fixture))
-                .andExpect(status().isCreated());
+        // El odontólogo prescriptor se resuelve del usuario autenticado (ya no viaja en el cuerpo).
+        when(userRepository.findByUsername("dr_plan")).thenReturn(Optional.of(odontologoMock));
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("dr_plan", "secret",
+                        List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("DENTIST"))));
+        try {
+            mockMvc.perform(post("/api/historias/" + HC_ID + "/plan")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(fixture))
+                    .andExpect(status().isCreated());
 
-        ArgumentCaptor<PlanTratamiento> captor = capturarGuardado(planTratamientoRepository, PlanTratamiento.class);
-        PlanTratamiento saved = captor.getValue();
+            ArgumentCaptor<PlanTratamiento> captor = capturarGuardado(planTratamientoRepository, PlanTratamiento.class);
+            PlanTratamiento saved = captor.getValue();
 
-        // Escenario Gherkin:
-        // Dado el fixture JSON "plan-tratamiento.json" con los campos descripcion,odontologoId,items[]
-        // Cuando se ejecuta POST /api/historias/{uuid}/plan
-        // Entonces la entidad capturada por PlanTratamientoRepository.save() tiene descripción no nula
-        // Y cada PlanItem tiene descripcion no nula
-        // Y cada PlanItem tiene prioridad no nula
-        assertNotNull(saved, "PlanTratamiento no debe ser nulo");
-        // Verificamos mediante JSON/Reflection los campos del contrato (Gherkin: descripcion, prioridad)
-        JsonNode savedTree = objectMapper.valueToTree(saved);
-        assertNotNull(savedTree.get("descripcion"), "PlanTratamiento debe tener descripción no nula en la entidad guardada");
-        assertFalse(savedTree.get("descripcion").isNull(), "PlanTratamiento debe tener descripción no nula");
+            // Escenario Gherkin:
+            // Dado el fixture JSON "plan.json" con los campos descripcion, items[{descripcion,tarifa,total}]
+            // Cuando se ejecuta POST /api/historias/{uuid}/plan
+            // Entonces la entidad capturada por PlanTratamientoRepository.save() tiene descripción no nula
+            // Y cada PlanItem tiene descripcion, tarifa y total no nulos
+            // Y el odontólogo del plan es el usuario autenticado
+            assertFixtureMatchesEntity(fixture, saved);
+            assertNotNull(saved.getOdontologo(), "El plan debe resolver el odontólogo del usuario autenticado");
+            assertEquals(ODONTOLOGO_ID, saved.getOdontologo().getId());
 
-        assertNotNull(saved.getItems(), "PlanTratamiento debe tener items");
-        assertFalse(saved.getItems().isEmpty(), "PlanTratamiento no debe tener lista de items vacía");
-        for (PlanItem item : saved.getItems()) {
-            JsonNode itemTree = objectMapper.valueToTree(item);
-            assertNotNull(itemTree.get("descripcion"), "Cada PlanItem debe tener descripción no nula");
-            assertNotNull(itemTree.get("prioridad"), "Cada PlanItem debe tener prioridad no nula en la entidad guardada");
-            assertFalse(itemTree.get("prioridad").isNull(), "Cada PlanItem debe tener prioridad no nula");
+            assertNotNull(saved.getItems(), "PlanTratamiento debe tener items");
+            assertFalse(saved.getItems().isEmpty(), "PlanTratamiento no debe tener lista de items vacía");
+            for (PlanItem item : saved.getItems()) {
+                JsonNode itemTree = objectMapper.valueToTree(item);
+                assertNotNull(itemTree.get("descripcion"), "Cada PlanItem debe tener descripción no nula");
+                assertFalse(itemTree.get("descripcion").isNull(), "Cada PlanItem debe tener descripción no nula");
+                assertNotNull(itemTree.get("tarifa"), "Cada PlanItem debe tener tarifa no nula");
+                assertFalse(itemTree.get("tarifa").isNull(), "Cada PlanItem debe tener tarifa no nula");
+                assertNotNull(itemTree.get("total"), "Cada PlanItem debe tener total no nulo");
+                assertFalse(itemTree.get("total").isNull(), "Cada PlanItem debe tener total no nulo");
+            }
+        } finally {
+            SecurityContextHolder.clearContext();
         }
     }
 
@@ -271,26 +290,35 @@ class ClinicalContractTest extends AbstractClinicalContractTest {
     class InverseDirectionContractTests {
 
         @Test
-        @DisplayName("Inverso [Falla por campo faltante]: PlanTratamientoResponse debe exponer 'createdAt' y cada item 'prioridad'")
+        @DisplayName("Inverso: PlanTratamientoResponse debe exponer descripcion, fecha, odontologoNombre, items y createdAt")
         void inverseContractPlanTratamiento() throws Exception {
-            // La UI en PlanTratamientoSection lee p.createdAt, p.descripcion, item.prioridad
-            String responseJson = mockMvc.perform(get("/api/historias/" + HC_ID + "/plan"))
-                    .andExpect(status().isOk())
-                    .andReturn().getResponse().getContentAsString();
-
-            // Verificamos que la estructura expuesta en el endpoint cumpla con los campos leídos por la UI
-            // Simulamos la serialización de respuesta para verificar presencia de atributos esperados por la UI
-            JsonNode responseNode = objectMapper.readTree(responseJson);
-            // Cuando list retorna elementos, se verifica existencia de los campos
-            // Probamos directamente contra un DTO / Entidad serializada
-            PlanTratamiento mockPlan = PlanTratamiento.builder()
+            // La UI en PlanTratamientoSection lee p.descripcion, p.odontologoNombre, p.fecha, p.items
+            PlanTratamientoResponse dto = PlanTratamientoResponse.builder()
                     .id(1L)
-                    .historiaClinica(historiaActiva)
-                    .odontologo(odontologoMock)
+                    .odontologoId(ODONTOLOGO_ID)
+                    .odontologoNombre("Dr. Juan Pérez")
+                    .fecha(LocalDate.now())
+                    .descripcion("Fase I Higiénica")
+                    .items(List.of(PlanTratamientoResponse.PlanItemResponse.builder()
+                            .id(1L)
+                            .descripcion("Profilaxis dental")
+                            .tarifa(new BigDecimal("120000"))
+                            .total(new BigDecimal("120000"))
+                            .createdAt(LocalDateTime.now())
+                            .build()))
+                    .createdAt(LocalDateTime.now())
+                    .createdBy("dr_plan")
+                    .updatedAt(LocalDateTime.now())
+                    .updatedBy("dr_plan")
                     .build();
 
-            JsonNode planNode = objectMapper.valueToTree(mockPlan);
-            assertNotNull(planNode.get("createdAt"), "PlanTratamiento guardado serializado debe exponer 'createdAt' para la UI");
+            JsonNode planNode = objectMapper.valueToTree(dto);
+            assertNotNull(planNode.get("descripcion"), "PlanTratamientoResponse debe exponer 'descripcion' para la UI");
+            assertNotNull(planNode.get("fecha"), "PlanTratamientoResponse debe exponer 'fecha' para la UI");
+            assertNotNull(planNode.get("odontologoNombre"), "PlanTratamientoResponse debe exponer 'odontologoNombre' para la UI");
+            assertNotNull(planNode.get("createdAt"), "PlanTratamientoResponse debe exponer 'createdAt' para la UI");
+            assertNotNull(planNode.get("items"), "PlanTratamientoResponse debe exponer 'items' para la UI");
+            assertFalse(planNode.get("items").isEmpty(), "PlanTratamientoResponse debe exponer items no vacíos");
         }
 
         @Test
@@ -311,14 +339,23 @@ class ClinicalContractTest extends AbstractClinicalContractTest {
         }
 
         @Test
-        @DisplayName("Inverso [Falla por campo faltante]: PlanItem debe exponer 'prioridad'")
+        @DisplayName("Inverso: PlanItemResponse debe exponer descripcion, tarifa, total y createdAt heredado")
         void inverseContractPlanItem() {
-            PlanItem item = PlanItem.builder()
+            PlanTratamientoResponse.PlanItemResponse item = PlanTratamientoResponse.PlanItemResponse.builder()
                     .id(1L)
+                    .descripcion("Profilaxis dental")
+                    .tarifa(new BigDecimal("120000"))
+                    .total(new BigDecimal("120000"))
+                    .createdAt(LocalDateTime.now())
                     .build();
 
             JsonNode node = objectMapper.valueToTree(item);
-            assertNotNull(node.get("prioridad"), "PlanItem serializado debe exponer 'prioridad' que la UI lee");
+            assertNotNull(node.get("descripcion"), "PlanItemResponse debe exponer 'descripcion' que la UI lee");
+            assertNotNull(node.get("tarifa"), "PlanItemResponse debe exponer 'tarifa' que la UI lee");
+            assertNotNull(node.get("total"), "PlanItemResponse debe exponer 'total' que la UI lee");
+            assertNotNull(node.get("createdAt"), "PlanItemResponse debe exponer 'createdAt' heredado del plan");
+            // Decisión de modelo (docs/plan-tratamiento-modelo.md): no existe 'prioridad' en el backend ni en la UI.
+            assertNull(node.get("prioridad"), "PlanItemResponse no debe exponer 'prioridad' (campo inexistente)");
         }
 
         @Test

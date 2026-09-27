@@ -15,6 +15,7 @@ public class PlanTratamientoResponse {
     private Long odontologoId;
     private String odontologoNombre;
     private LocalDate fecha;
+    private String descripcion;
     private List<PlanItemResponse> items;
 
     private LocalDateTime createdAt;

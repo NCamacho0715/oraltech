@@ -1,16 +1,39 @@
 import React, { useState, useEffect } from "react";
-import { Plus, ListChecks, Calendar, Trash2 } from "lucide-react";
+import { Plus, ListChecks, Calendar, User } from "lucide-react";
 import clinicaService from "../../services/clinicaService";
+import { formatCOP, formatCOPInput, parseCOP } from "../../utils/copMoney";
+import { parseFechaLocal } from "../../utils/fechas";
+
+// Decisión de modelo (documentada en docs/plan-tratamiento-modelo.md):
+// El plan tiene descripción general + ítems {descripcion, tarifa, total}.
+// El odontólogo prescriptor se resuelve del usuario autenticado (no viaja en el cuerpo).
+// No existen `odontologoId` ni `prioridad`: se eliminan del estado.
+// La lista lee `descripcion`, `odontologoNombre`, `fecha`/`createdAt` e ítems.
+
+const EMPTY_ITEM = { descripcion: "", tarifa: "", total: "" };
+
+// Formatea `fecha` (LocalDate) con respaldo en `createdAt`.
+// Nunca devuelve "Invalid Date": retorna '' si ambos faltan o son inválidos.
+const formatPlanFecha = (plan) => {
+  for (const value of [plan?.fecha, plan?.createdAt]) {
+    if (value === null || value === undefined || value === "") continue;
+    const d = parseFechaLocal(value);
+    if (!Number.isNaN(d.getTime())) return d.toLocaleDateString();
+  }
+  return "";
+};
+
+const extractErrorMessage = (err) =>
+  err?.response?.data?.message || err?.response?.data?.error || err?.message || "Error al crear plan";
 
 const PlanTratamientoSection = ({ historiaId, readOnly }) => {
   const [planes, setPlanes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
   const [newPlan, setNewPlan] = useState({ descripcion: "", items: [] });
-  const [newItem, setNewItem] = useState({
-    descripcion: "",
-    prioridad: "BAJA",
-  });
+  const [newItem, setNewItem] = useState({ ...EMPTY_ITEM });
 
   useEffect(() => {
     load();
@@ -19,7 +42,7 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
   const load = async () => {
     try {
       const res = await clinicaService.listPlanes(historiaId);
-      setPlanes(res.data);
+      setPlanes(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
     } finally {
       setLoading(false);
@@ -27,31 +50,43 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
   };
 
   const handleAddItem = () => {
-    if (!newItem.descripcion) return;
+    if (!newItem.descripcion?.trim()) return;
 
     setNewPlan({
       ...newPlan,
       items: [
         ...newPlan.items,
         {
-          ...newItem,
+          descripcion: newItem.descripcion.trim(),
+          ...(parseCOP(newItem.tarifa) !== null ? { tarifa: parseCOP(newItem.tarifa) } : {}),
+          ...(parseCOP(newItem.total) !== null ? { total: parseCOP(newItem.total) } : {}),
           _key: crypto.randomUUID(),
         },
       ],
     });
 
-    setNewItem({ descripcion: "", prioridad: "BAJA" });
+    setNewItem({ ...EMPTY_ITEM });
+  };
+
+  const handleRemoveItem = (key) => {
+    setNewPlan({ ...newPlan, items: newPlan.items.filter((i) => i._key !== key) });
   };
 
   const handleSavePlan = async () => {
-    if (!newPlan.descripcion || newPlan.items.length === 0) {
-      alert("Descripción y al menos un item requeridos");
+    setFormError("");
+    if (!newPlan.descripcion?.trim()) {
+      setFormError("La descripción del plan es obligatoria");
+      return;
+    }
+    if (newPlan.items.length === 0) {
+      setFormError("El plan debe contener al menos un ítem de tratamiento");
       return;
     }
 
+    setSaving(true);
     try {
       const planToSave = {
-        descripcion: newPlan.descripcion,
+        descripcion: newPlan.descripcion.trim(),
         items: newPlan.items.map(({ _key, ...item }) => item),
       };
 
@@ -61,9 +96,14 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
       setShowForm(false);
       load();
     } catch (e) {
-      alert("Error al crear plan");
+      setFormError(extractErrorMessage(e));
+    } finally {
+      setSaving(false);
     }
   };
+
+  const planTotal = (p) =>
+    (p.items ?? []).reduce((acc, it) => acc + (Number(it.total) || 0), 0);
 
   return (
     <div style={{ animation: "fadeIn 0.4s ease-out" }}>
@@ -117,7 +157,7 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
             padding: "2rem",
             borderRadius: "var(--border-radius)",
             boxShadow: "var(--shadow)",
-            border: "1px solid #90e0ef",
+            border: "1px solid var(--border-color)",
             marginBottom: "2.5rem",
             animation: "fadeIn 0.3s ease-out",
           }}
@@ -143,24 +183,25 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
               style={{
                 width: "100%",
                 padding: "1rem",
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--border-color)",
                 borderRadius: "8px",
                 fontSize: "1rem",
-                background: "#f8fbff",
+                background: "var(--surface)",
+                color: "var(--text-main)",
                 outline: "none",
                 transition: "border-color 0.3s",
               }}
               onFocus={(e) => (e.target.style.borderColor = "var(--primary)")}
-              onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--border-color)")}
             />
           </div>
 
           <div
             style={{
-              background: "#f8fafc",
+              background: "var(--background)",
               padding: "1.5rem",
               borderRadius: "8px",
-              border: "1px solid #e2e8f0",
+              border: "1px solid var(--border-color)",
               marginBottom: "1.5rem",
             }}
           >
@@ -177,7 +218,7 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
               Añadir Actividades / Pasos
             </p>
             <div
-              style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem" }}
+              style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap" }}
             >
               <input
                 type="text"
@@ -187,40 +228,60 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
                   setNewItem({ ...newItem, descripcion: e.target.value })
                 }
                 style={{
-                  flex: 1,
+                  flex: "2 1 200px",
                   padding: "0.8rem 1rem",
-                  border: "1px solid #e2e8f0",
+                  border: "1px solid var(--border-color)",
                   borderRadius: "8px",
                   fontSize: "0.95rem",
-                  background: "#ffffff",
+                  background: "var(--surface)",
+                  color: "var(--text-main)",
                   outline: "none",
                 }}
               />
-              <select
-                value={newItem.prioridad}
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Tarifa (Ej: 150.000)"
+                value={newItem.tarifa}
                 onChange={(e) =>
-                  setNewItem({ ...newItem, prioridad: e.target.value })
+                  setNewItem({ ...newItem, tarifa: formatCOPInput(e.target.value) })
                 }
                 style={{
+                  flex: "1 1 100px",
                   padding: "0.8rem 1rem",
-                  border: "1px solid #e2e8f0",
+                  border: "1px solid var(--border-color)",
                   borderRadius: "8px",
                   fontSize: "0.95rem",
-                  background: "#ffffff",
+                  background: "var(--surface)",
+                  color: "var(--text-main)",
                   outline: "none",
-                  minWidth: "120px",
                 }}
-              >
-                <option value="ALTA">Alta</option>
-                <option value="MEDIA">Media</option>
-                <option value="BAJA">Baja</option>
-              </select>
+              />
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Total (Ej: 150.000)"
+                value={newItem.total}
+                onChange={(e) =>
+                  setNewItem({ ...newItem, total: formatCOPInput(e.target.value) })
+                }
+                style={{
+                  flex: "1 1 100px",
+                  padding: "0.8rem 1rem",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "8px",
+                  fontSize: "0.95rem",
+                  background: "var(--surface)",
+                  color: "var(--text-main)",
+                  outline: "none",
+                }}
+              />
               <button
                 onClick={handleAddItem}
                 style={{
                   padding: "0 1.2rem",
                   background: "var(--text-main)",
-                  color: "white",
+                  color: "var(--surface)",
                   border: "none",
                   borderRadius: "8px",
                   cursor: "pointer",
@@ -249,44 +310,37 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    background: "#ffffff",
+                    gap: "1rem",
+                    background: "var(--surface)",
                     padding: "0.8rem 1rem",
-                    border: "1px solid #e2e8f0",
+                    border: "1px solid var(--border-color)",
                     borderRadius: "6px",
                   }}
                 >
                   <span
-                    style={{ fontSize: "0.95rem", color: "var(--text-main)" }}
+                    style={{ fontSize: "0.95rem", color: "var(--text-main)", flex: 1 }}
                   >
                     {item.descripcion}
                   </span>
-                  <span
-                    style={{
-                      padding: "0.2rem 0.6rem",
-                      borderRadius: "999px",
-                      fontSize: "0.75rem",
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      background:
-                        item.prioridad === "ALTA"
-                          ? "#fee2e2"
-                          : item.prioridad === "MEDIA"
-                            ? "#fef3c7"
-                            : "#f1f5f9",
-                      color:
-                        item.prioridad === "ALTA"
-                          ? "#ef4444"
-                          : item.prioridad === "MEDIA"
-                            ? "#d97706"
-                            : "#64748b",
-                    }}
+                  {formatCOP(item.total ?? item.tarifa) && (
+                    <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 600 }}>
+                      $ {formatCOP(item.total ?? item.tarifa)}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handleRemoveItem(item._key)}
+                    style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontWeight: 600 }}
                   >
-                    {item.prioridad}
-                  </span>
+                    Quitar
+                  </button>
                 </li>
               ))}
             </ul>
           </div>
+
+          {formError && (
+            <p style={{ color: "#e63946", fontWeight: 600 }}>{formError}</p>
+          )}
 
           <div
             style={{
@@ -301,7 +355,7 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
               style={{
                 background: "none",
                 border: "none",
-                color: "#64748b",
+                color: "var(--text-secondary)",
                 fontWeight: 600,
                 fontSize: "0.95rem",
                 cursor: "pointer",
@@ -311,25 +365,31 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
             </button>
             <button
               onClick={handleSavePlan}
+              disabled={saving}
               className="btn-primary"
-              style={{ width: "auto", padding: "0.8rem 1.5rem", margin: 0 }}
+              style={{ width: "auto", padding: "0.8rem 1.5rem", margin: 0, opacity: saving ? 0.5 : 1 }}
             >
-              Crear Plan Integral
+              {saving ? "Guardando..." : "Crear Plan Integral"}
             </button>
           </div>
         </div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+        {loading && (
+          <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-secondary)" }}>
+            Cargando planes...
+          </div>
+        )}
         {planes.length === 0 && !loading && !showForm && (
           <div
             style={{
               padding: "3rem",
               textAlign: "center",
-              border: "1px solid #e2e8f0",
+              border: "1px solid var(--border-color)",
               borderRadius: "12px",
               background: "var(--surface)",
-              color: "#94a3b8",
+              color: "var(--text-secondary)",
               fontStyle: "italic",
             }}
           >
@@ -343,14 +403,15 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
               background: "var(--surface)",
               padding: "1.5rem",
               borderRadius: "12px",
-              border: "1px solid #e2e8f0",
+              border: "1px solid var(--border-color)",
+              boxShadow: "var(--shadow)",
               transition: "all 0.3s ease",
             }}
             onMouseEnter={(e) =>
               (e.currentTarget.style.borderColor = "var(--primary-light)")
             }
             onMouseLeave={(e) =>
-              (e.currentTarget.style.borderColor = "#e2e8f0")
+              (e.currentTarget.style.borderColor = "var(--border-color)")
             }
           >
             <div
@@ -359,6 +420,7 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
                 justifyContent: "space-between",
                 alignItems: "flex-start",
                 marginBottom: "1.5rem",
+                gap: "1rem",
               }}
             >
               <div>
@@ -383,10 +445,35 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
                     letterSpacing: "0.05em",
                   }}
                 >
-                  <Calendar size={14} />{" "}
-                  {new Date(p.createdAt).toLocaleDateString()}
+                  <Calendar size={14} /> {formatPlanFecha(p)}
                 </div>
+                {p.odontologoNombre && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      fontSize: "0.85rem",
+                      color: "var(--text-secondary)",
+                      marginTop: "0.3rem",
+                    }}
+                  >
+                    <User size={14} /> Prescrito por {p.odontologoNombre}
+                  </div>
+                )}
               </div>
+              {planTotal(p) > 0 && (
+                <span
+                  style={{
+                    fontSize: "1rem",
+                    fontWeight: 700,
+                    color: "var(--primary)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  $ {planTotal(p).toLocaleString("es-CO")}
+                </span>
+              )}
             </div>
             <div
               style={{
@@ -395,7 +482,7 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
                 gap: "0.8rem",
               }}
             >
-              {p.items.map((item) => (
+              {(p.items ?? []).map((item) => (
                 <div
                   key={item.id}
                   style={{
@@ -412,12 +499,8 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
                       width: "8px",
                       height: "8px",
                       borderRadius: "50%",
-                      background:
-                        item.prioridad === "ALTA"
-                          ? "#ef4444"
-                          : item.prioridad === "MEDIA"
-                            ? "#f59e0b"
-                            : "#94a3b8",
+                      background: "var(--primary)",
+                      flexShrink: 0,
                     }}
                   />
                   <span
@@ -429,16 +512,16 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
                   >
                     {item.descripcion}
                   </span>
-                  <span
-                    style={{
-                      fontSize: "0.75rem",
-                      color: "#94a3b8",
-                      fontStyle: "italic",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {item.prioridad}
-                  </span>
+                  {formatCOP(item.tarifa) && (
+                    <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                      Tarifa: $ {formatCOP(item.tarifa)}
+                    </span>
+                  )}
+                  {formatCOP(item.total) && (
+                    <span style={{ fontSize: "0.85rem", color: "var(--text-main)", fontWeight: 700 }}>
+                      $ {formatCOP(item.total)}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

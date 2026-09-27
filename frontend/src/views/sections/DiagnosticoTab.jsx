@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, CheckCircle, Plus, Send } from 'lucide-react';
 import clinicaService from '../../services/clinicaService';
+import { parseFechaLocal } from '../../utils/fechas';
 
 // Decisión de modelo (documentada en docs/diagnostico-modelo.md):
 // La UI se adapta al modelo clínico de 8 campos del backend
@@ -45,7 +46,7 @@ const mapDiagnosticoToState = (data) => ({
 const formatInterconsultaDate = (inter) => {
   const raw = inter?.createdAt ?? inter?.updatedAt ?? null;
   if (!raw) return '';
-  const d = new Date(raw);
+  const d = parseFechaLocal(raw);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString();
 };

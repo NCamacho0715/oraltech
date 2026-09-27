@@ -1,15 +1,16 @@
 {
   "_comment": "Este objeto debe mantenerse idéntico al payload que construye frontend/src/views/sections/PlanTratamientoSection.jsx. Si agregas un campo en la UI, agrégalo aquí en el mismo commit.",
   "descripcion": "Fase I Higiénica y Fase II Restauradora integral",
-  "odontologoId": 1,
   "items": [
     {
       "descripcion": "Profilaxis dental completa y detartraje supragingival",
-      "prioridad": "ALTA"
+      "tarifa": 120000,
+      "total": 120000
     },
     {
       "descripcion": "Restauración en resina compuesta diente 46 oclusal",
-      "prioridad": "MEDIA"
+      "tarifa": 250000,
+      "total": 250000
     }
   ]
 }

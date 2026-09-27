@@ -44,8 +44,8 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
     hipoplasias: false, amelogenesis: false, manchas: false, desgastes: false, tdFracturas: false, agenesia: false, supernumerario: false, ausenteObs: '',
     micrognasia: false, macrognasia: false, torus: false, maxOtros: '',
     dolorArticular: false, dolorMuscular: false, ruidos: false, limitacion: false, desviacion: false, atmObservaciones: '',
-    sobremordidaH: 0.0, sobremordidaV: 0.0, oclusionTipo: '', lineaMedia: '', patronMasticacion: 'BILATERAL',
-    higiene: 'BUENA', habHalitosis: false, bruxismo: false, habOtros: ''
+    sobremordidaH: 0.0, sobremordidaV: 0.0, oclusionTipo: '', lineaMedia: '', patronMasticacion: 'BILAT',
+    higiene: 'B', habHalitosis: false, bruxismo: false, habOtros: ''
   });
 
   const [saving, setSaving] = useState(false);
@@ -182,9 +182,9 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
                         <div className="form-group">
                             <label>Patrón Masticación</label>
                             <select value={data.patronMasticacion} onChange={e => handleChange('patronMasticacion', e.target.value)}>
-                                <option value="BILATERAL">Bilateral</option>
-                                <option value="DERECHA">Derecha</option>
-                                <option value="IZQUIERDA">Izquierda</option>
+                                <option value="BILAT">Bilateral</option>
+                                <option value="DER">Derecha</option>
+                                <option value="IZQ">Izquierda</option>
                             </select>
                         </div>
                     </div>
@@ -196,9 +196,9 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
                         <div className="form-group">
                             <label>Grado de Higiene Oral</label>
                             <select value={data.higiene} onChange={e => handleChange('higiene', e.target.value)}>
-                                <option value="BUENA">Buena</option>
-                                <option value="REGULAR">Regular</option>
-                                <option value="MALA">Mala</option>
+                                <option value="B">Buena</option>
+                                <option value="R">Regular</option>
+                                <option value="M">Mala</option>
                             </select>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, MessageSquare, User, Calendar } from 'lucide-react';
 import clinicaService from '../../services/clinicaService';
+import { formatCOP, formatCOPInput, parseCOP } from '../../utils/copMoney';
+import { parseFechaLocal } from '../../utils/fechas';
 import SignatureCanvas from '../../components/clinica/SignatureCanvas';
 
 // Decisión de modelo (documentada en docs/evoluciones-modelo.md):
@@ -24,7 +26,7 @@ const EMPTY_EVO = {
 // Nunca devuelve "Invalid Date": retorna '' si el valor falta o no es válido.
 const formatFecha = (value) => {
   if (value === null || value === undefined || value === '') return '';
-  const d = new Date(value);
+  const d = parseFechaLocal(value);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString();
 };
@@ -86,8 +88,8 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
       firmaOdontologo: newEvo.firmaOdontologo || null
     };
     if (newEvo.numeroDiente !== '') payload.numeroDiente = Number(newEvo.numeroDiente);
-    if (newEvo.abono !== '') payload.abono = Number(newEvo.abono);
-    if (newEvo.saldo !== '') payload.saldo = Number(newEvo.saldo);
+    if (parseCOP(newEvo.abono) !== null) payload.abono = parseCOP(newEvo.abono);
+    if (parseCOP(newEvo.saldo) !== null) payload.saldo = parseCOP(newEvo.saldo);
     if (newEvo.citaId !== '') payload.citaId = Number(newEvo.citaId);
     return payload;
   };
@@ -181,24 +183,22 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
             <div>
               <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Abono</label>
               <input
-                type="number"
-                min="0"
-                step="0.01"
+                type="text"
+                inputMode="numeric"
                 value={newEvo.abono}
-                onChange={e => setNewEvo({...newEvo, abono: e.target.value})}
-                placeholder="0"
+                onChange={e => setNewEvo({...newEvo, abono: formatCOPInput(e.target.value)})}
+                placeholder="Ej: 150.000"
                 style={{ width: '100%', padding: '0.7rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.95rem', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)' }}
               />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Saldo</label>
               <input
-                type="number"
-                min="0"
-                step="0.01"
+                type="text"
+                inputMode="numeric"
                 value={newEvo.saldo}
-                onChange={e => setNewEvo({...newEvo, saldo: e.target.value})}
-                placeholder="0"
+                onChange={e => setNewEvo({...newEvo, saldo: formatCOPInput(e.target.value)})}
+                placeholder="Ej: 150.000"
                 style={{ width: '100%', padding: '0.7rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.95rem', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)' }}
               />
             </div>
@@ -278,8 +278,8 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
               {(evo.numeroDiente != null || evo.abono != null || evo.saldo != null) && (
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '0.8rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                   {evo.numeroDiente != null && <span>Diente: {evo.numeroDiente}</span>}
-                  {evo.abono != null && <span>Abono: {evo.abono}</span>}
-                  {evo.saldo != null && <span>Saldo: {evo.saldo}</span>}
+                  {evo.abono != null && <span>Abono: $ {formatCOP(evo.abono)}</span>}
+                  {evo.saldo != null && <span>Saldo: $ {formatCOP(evo.saldo)}</span>}
                 </div>
               )}
               <div style={{ paddingTop: '1rem', marginTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>

@@ -6,6 +6,6 @@ import java.util.List;
 
 @Data
 public class PlanTratamientoRequest {
-    private Long odontologoId;
+    private String descripcion;
     private List<PlanItemRequest> items;
 }
