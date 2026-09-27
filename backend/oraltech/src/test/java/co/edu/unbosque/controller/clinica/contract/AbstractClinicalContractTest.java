@@ -120,6 +120,7 @@ public abstract class AbstractClinicalContractTest {
     @MockBean protected PatientRepository patientRepository;
     @MockBean protected UserRepository userRepository;
     @MockBean protected JwtService jwtService;
+    @MockBean protected co.edu.unbosque.repository.AppointmentRepository appointmentRepository;
 
     // Este slice no monta el JPA auditing (@EnableJpaAuditing); el guard necesita el
     // AuditingHandler para registrar la actividad de la historia al guardar secciones.

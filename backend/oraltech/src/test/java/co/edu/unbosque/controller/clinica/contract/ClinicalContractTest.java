@@ -294,15 +294,20 @@ class ClinicalContractTest extends AbstractClinicalContractTest {
         }
 
         @Test
-        @DisplayName("Inverso [Falla por campo faltante]: EvolucionClinicaResponse debe exponer 'descripcion'")
+        @DisplayName("Inverso: EvolucionClinica debe exponer 'procedimiento' y 'fecha' (sin 'descripcion')")
         void inverseContractEvolucion() {
             EvolucionClinica evo = EvolucionClinica.builder()
                     .id(1L)
                     .historiaClinica(historiaActiva)
+                    .procedimiento("Obturación con resina")
+                    .fecha(java.time.LocalDate.now())
                     .build();
 
             JsonNode node = objectMapper.valueToTree(evo);
-            assertNotNull(node.get("descripcion"), "EvolucionClinica serializada debe exponer 'descripcion' que la UI lee");
+            assertNotNull(node.get("procedimiento"), "EvolucionClinica serializada debe exponer 'procedimiento' que la UI lee");
+            assertNotNull(node.get("fecha"), "EvolucionClinica serializada debe exponer 'fecha' que la UI lee");
+            // Decisión de modelo (docs/evoluciones-modelo.md): no existe 'descripcion' en el backend ni en la UI.
+            assertNull(node.get("descripcion"), "EvolucionClinica no debe exponer 'descripcion' (campo eliminado)");
         }
 
         @Test
