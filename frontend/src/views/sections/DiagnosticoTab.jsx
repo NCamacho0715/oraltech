@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, CheckCircle, Plus, Send } from 'lucide-react';
+import { Save, CheckCircle, Plus } from 'lucide-react';
 import clinicaService from '../../services/clinicaService';
 import { parseFechaLocal } from '../../utils/fechas';
 
@@ -54,6 +54,8 @@ const formatInterconsultaDate = (inter) => {
 const extractErrorMessage = (err) =>
   err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Error al guardar';
 
+const isNotFound = (err) => err?.response?.status === 404;
+
 const DiagnosticoTab = ({ historiaId, readOnly }) => {
   const [diag, setDiag] = useState({ ...EMPTY_DIAG });
   const [pron, setPron] = useState({ descripcion: '' });
@@ -63,22 +65,37 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     load();
   }, [historiaId]);
 
   const load = async () => {
-    try {
-      const [d, p, i] = await Promise.all([
-        clinicaService.getDiagnostico(historiaId),
-        clinicaService.getPronostico(historiaId),
-        clinicaService.listInterconsultas(historiaId)
-      ]);
-      if (d.data) setDiag(mapDiagnosticoToState(d.data));
-      if (p.data) setPron({ descripcion: p.data.descripcion ?? '' });
-      setInters(Array.isArray(i.data) ? i.data : []);
-    } catch (e) {}
+    setLoadError('');
+    const [d, p, i] = await Promise.allSettled([
+      clinicaService.getDiagnostico(historiaId),
+      clinicaService.getPronostico(historiaId),
+      clinicaService.listInterconsultas(historiaId)
+    ]);
+    // 404 = "aún no registrado": estado vacío, no error.
+    if (d.status === 'fulfilled') {
+      if (d.value.data) setDiag(mapDiagnosticoToState(d.value.data));
+    } else if (!isNotFound(d.reason)) {
+      setLoadError(extractErrorMessage(d.reason));
+      return;
+    }
+    if (p.status === 'fulfilled') {
+      if (p.value.data) setPron({ descripcion: p.value.data.descripcion ?? '' });
+    } else if (!isNotFound(p.reason)) {
+      setLoadError(extractErrorMessage(p.reason));
+      return;
+    }
+    if (i.status === 'fulfilled') {
+      setInters(Array.isArray(i.value.data) ? i.value.data : []);
+    } else if (!isNotFound(i.reason)) {
+      setLoadError(extractErrorMessage(i.reason));
+    }
   };
 
   const handleSaveMain = async () => {
@@ -125,6 +142,13 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
         <h3 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-main)', borderBottom: '2px solid rgba(0, 119, 182, 0.1)', paddingBottom: '1rem', marginBottom: '2rem' }}>
             Diagnóstico y Pronóstico
         </h3>
+
+        {loadError && (
+          <div style={{ border: '1px solid var(--accent)', background: 'rgba(230, 57, 70, 0.08)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            <strong style={{ color: 'var(--accent)' }}>No se pudieron cargar los datos. </strong>
+            {loadError}
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
             {DIAG_FIELDS.map(({ key, label }) => (

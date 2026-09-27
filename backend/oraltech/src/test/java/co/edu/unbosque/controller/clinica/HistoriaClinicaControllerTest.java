@@ -80,4 +80,20 @@ class HistoriaClinicaControllerTest {
         mockMvc.perform(get("/api/historias/paciente/1"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("GET /api/historias/paciente/{pacienteId}/exists → 200 con {exists}")
+    void shouldCheckHistoriaExists() throws Exception {
+        when(service.existsByPacienteId(1L)).thenReturn(true);
+
+        mockMvc.perform(get("/api/historias/paciente/1/exists"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.exists").value(true));
+
+        when(service.existsByPacienteId(2L)).thenReturn(false);
+
+        mockMvc.perform(get("/api/historias/paciente/2/exists"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.exists").value(false));
+    }
 }

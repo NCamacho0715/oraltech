@@ -24,6 +24,11 @@ const clinicaService = {
       headers: getAuthHeader(),
     }),
 
+  historiaExists: (patientId) =>
+    axios.get(`${API_URL}/historias/paciente/${patientId}/exists`, {
+      headers: getAuthHeader(),
+    }),
+
   getPatientById: (patientId) =>
     axios.get(`${API_URL}/patients/${patientId}`, {
       headers: getAuthHeader(),

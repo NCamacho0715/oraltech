@@ -119,11 +119,18 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
   const [hasMed, setHasMed] = useState(false);
   const [hasAlergiaMed, setHasAlergiaMed] = useState(false);
 
-  const [patientSex, setPatientSex] = useState("M");
+  const [patientSex, setPatientSex] = useState(null);
+  const [patientBlocked, setPatientBlocked] = useState(false);
+  const [patientError, setPatientError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const loadData = useCallback(async () => {
+  // Fail-safe: si no se pudo cargar el paciente, el formulario queda en solo lectura.
+  const locked = readOnly || patientBlocked;
+
+  const loadAntecedentes = useCallback(async () => {
     try {
       const res = await clinicaService.getAntecedentes(historiaId);
 
@@ -144,18 +151,32 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
           setHasAlergiaMed(true);
         }
       }
-
-      const { data: patient } = await clinicaService.getPatientById(patientId);
-
-      setPatientSex(patient.sex);
-    } catch (e) {
-      console.error("Error cargando antecedentes:", e);
+    } catch (err) {
+      // 404 = "sin antecedentes aún": estado vacío, no error.
+      if (err?.response?.status === 404) return;
+      setLoadError(
+        err?.response?.data?.message || err?.message || "No se pudieron cargar los antecedentes",
+      );
     }
-  }, [historiaId, patientId]);
+  }, [historiaId]);
+
+  const loadPatient = useCallback(async () => {
+    try {
+      const { data: patient } = await clinicaService.getPatientById(patientId);
+      setPatientSex(patient?.sex ?? null);
+    } catch (err) {
+      // Sin sexo confiable no se puede decidir sobre "Embarazada": bloquear edición.
+      setPatientBlocked(true);
+      setPatientError(
+        err?.response?.data?.message || err?.message || "No se pudo cargar el sexo del paciente",
+      );
+    }
+  }, [patientId]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadAntecedentes();
+    loadPatient();
+  }, [loadAntecedentes, loadPatient]);
 
   const handleChange = (field, value) => {
     setData((prev) => ({ ...prev, [field]: value }));
@@ -164,6 +185,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    setSaveError("");
     const finalData = { ...data };
     if (!hasCafe) finalData.cafe = "";
     if (!hasMed) finalData.medicamentos = "";
@@ -173,7 +195,9 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      alert("Error al guardar");
+      setSaveError(
+        err?.response?.data?.message || err?.message || "Error al guardar",
+      );
     } finally {
       setSaving(false);
     }
@@ -203,6 +227,43 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
       >
         Antecedentes Médico - Odontológicos
       </h3>
+
+      {patientError && (
+        <div
+          style={{
+            border: "1px solid var(--accent)",
+            background: "rgba(230, 57, 70, 0.08)",
+            borderRadius: "8px",
+            padding: "0.8rem 1rem",
+            marginBottom: "1.5rem",
+            fontSize: "0.9rem",
+            color: "var(--text-main)",
+          }}
+        >
+          <strong style={{ color: "var(--accent)" }}>
+            No se pudo verificar el sexo del paciente.{" "}
+          </strong>
+          {patientError} El formulario está en solo lectura.
+        </div>
+      )}
+      {loadError && (
+        <div
+          style={{
+            border: "1px solid var(--accent)",
+            background: "rgba(230, 57, 70, 0.08)",
+            borderRadius: "8px",
+            padding: "0.8rem 1rem",
+            marginBottom: "1.5rem",
+            fontSize: "0.9rem",
+            color: "var(--text-main)",
+          }}
+        >
+          <strong style={{ color: "var(--accent)" }}>
+            No se pudieron cargar los antecedentes.{" "}
+          </strong>
+          {loadError}
+        </div>
+      )}
 
       <div
         style={{
@@ -235,42 +296,42 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 field="famCardiacos"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Diabetes"
                 field="famDiabetes"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Hipertensión"
                 field="famHipertension"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Cáncer"
                 field="famCancer"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Epilepsia"
                 field="famEpilepsia"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Otros"
                 field="famOtros"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               >
                 <input
                   type="text"
@@ -306,56 +367,56 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 field="hepatitis"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Fiebre Neumática"
                 field="fiebreReumatica"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Diabetes"
                 field="patDiabetes"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Úlcera / Hernia Hiatal"
                 field="ulcera"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Epilepsia"
                 field="patEpilepsia"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Tensión Arterial Alta"
                 field="patHipertension"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Convulsiones"
                 field="convulsiones"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Alergias"
                 field="alergias"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               >
                 <input
                   type="text"
@@ -370,63 +431,63 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 field="mareos"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Fracturas / Accidentes"
                 field="fracturas"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Hemorragias"
                 field="hemorragias"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Cicatriza Normalmente"
                 field="cicatrizacion"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Infartos / Anginas"
                 field="infartos"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Reemplazo de Válvulas"
                 field="valvulas"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Problemas Renales"
                 field="renales"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Respiratorios / Asma"
                 field="respiratorios"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="VIH"
                 field="vih"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
             </div>
           </section>
@@ -456,21 +517,21 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 field="fuma"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Bebe Alcohol"
                 field="alcohol"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Ingiere Café y/o Té"
                 checked={hasCafe}
                 onToggle={setHasCafe}
                 data={data}
-                readOnly={readOnly}
+                readOnly={locked}
               >
                 <input
                   type="text"
@@ -485,7 +546,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 checked={hasMed}
                 onToggle={setHasMed}
                 data={data}
-                readOnly={readOnly}
+                readOnly={locked}
               >
                 <input
                   type="text"
@@ -500,7 +561,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 checked={hasAlergiaMed}
                 onToggle={setHasAlergiaMed}
                 data={data}
-                readOnly={readOnly}
+                readOnly={locked}
               >
                 <input
                   type="text"
@@ -517,7 +578,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 field="alergiaAnestesia"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
             </div>
           </section>
@@ -545,7 +606,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 field="tratamiento"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               {patientSex === "F" && (
                 <CheckboxRow
@@ -553,7 +614,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                   field="embarazo"
                   data={data}
                   onChange={handleChange}
-                  readOnly={readOnly}
+                  readOnly={locked}
                 >
                   <div
                     style={{
@@ -579,14 +640,14 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 field="cirugias"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Transfusiones"
                 field="transfusiones"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
             </div>
           </section>
@@ -615,35 +676,35 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
                 field="luxacion"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Amigdalitis"
                 field="amigdalitis"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Infecciones Orales"
                 field="infecciones"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Halitosis / Acidez"
                 field="halitosis"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
               <CheckboxRow
                 label="Fuegos / Herpes"
                 field="fuegos"
                 data={data}
                 onChange={handleChange}
-                readOnly={readOnly}
+                readOnly={locked}
               />
             </div>
             <div
@@ -733,7 +794,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
         <textarea
           value={data.observaciones}
           onChange={(e) => handleChange("observaciones", e.target.value)}
-          readOnly={readOnly}
+          readOnly={locked}
           style={{
             width: "100%",
             padding: "1rem",
@@ -751,7 +812,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
         />
       </section>
 
-      {!readOnly && (
+      {!locked && (
         <div
           style={{
             display: "flex",
@@ -779,6 +840,11 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
             <Save size={18} />{" "}
             {saving ? "Guardando..." : "Guardar Antecedentes"}
           </button>
+          {saveError && (
+            <span style={{ color: "var(--accent)", fontWeight: 500 }}>
+              {saveError}
+            </span>
+          )}
           {saved && (
             <span style={{ color: "var(--success)", fontWeight: 500 }}>
               <CheckCircle size={18} /> Guardado

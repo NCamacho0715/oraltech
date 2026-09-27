@@ -192,7 +192,7 @@ const Dashboard = () => {
               value: stats.totalClinicalHistories,
               color: "#48cae4",
             },
-          ].map((stat, i) => (
+          ].map((stat) => (
             <div
               key={stat.label}
               style={{
@@ -261,7 +261,7 @@ const Dashboard = () => {
                   },
                 ]
               : []),
-          ].map((item, index) => (
+          ].map((item) => (
             <div
               key={item.path}
               className="auth-card"

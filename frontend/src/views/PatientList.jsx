@@ -7,7 +7,15 @@ const PatientList = () => {
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [confirmWord, setConfirmWord] = useState('');
+    const [deleting, setDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState('');
     const navigate = useNavigate();
+
+    // Solo el rol administrador puede eliminar pacientes (el backend lo exige con 403).
+    const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+    const isAdmin = currentUser?.role === 'ADMIN';
 
     useEffect(() => {
         loadPatients();
@@ -24,14 +32,36 @@ const PatientList = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (window.confirm('¿Está seguro de que desea eliminar este paciente?')) {
-            try {
-                await deletePatient(id);
-                loadPatients();
-            } catch (error) {
-                alert('Error al eliminar paciente');
+    const openDeleteConfirm = (patient) => {
+        setDeleteTarget(patient);
+        setConfirmWord('');
+        setDeleteError('');
+    };
+
+    const closeDeleteConfirm = () => {
+        if (deleting) return;
+        setDeleteTarget(null);
+        setConfirmWord('');
+        setDeleteError('');
+    };
+
+    const handleDelete = async () => {
+        if (!deleteTarget || confirmWord.trim() !== 'CONFIRMAR' || deleting) return;
+        setDeleting(true);
+        setDeleteError('');
+        try {
+            await deletePatient(deleteTarget.id);
+            setDeleteTarget(null);
+            setConfirmWord('');
+            loadPatients();
+        } catch (error) {
+            if (error.response?.status === 403) {
+                setDeleteError('Solo un administrador puede eliminar pacientes');
+            } else {
+                setDeleteError(error.response?.data?.message || error.message || 'Error al eliminar paciente');
             }
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -121,13 +151,15 @@ const PatientList = () => {
                                     >
                                         <Edit2 size={18} />
                                     </button>
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); handleDelete(patient.id); }} 
-                                        style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }} 
-                                        title="Eliminar"
+                                    {isAdmin && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); openDeleteConfirm(patient); }}
+                                        style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }}
+                                        title="Eliminar (solo administradores)"
                                     >
                                         <Trash2 size={18} />
                                     </button>
+                                    )}
                                 </div>
                             </div>
                             <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.2rem' }}>
@@ -146,6 +178,36 @@ const PatientList = () => {
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {deleteTarget && (
+                <div onClick={closeDeleteConfirm} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '1rem' }}>
+                    <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', color: 'var(--text-main)', border: '1px solid var(--border-color)', padding: '2rem', borderRadius: '16px', width: '440px', maxWidth: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
+                        <h3 style={{ margin: '0 0 0.5rem 0', fontWeight: 800, fontSize: '1.2rem' }}>Eliminar paciente</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: '0 0 1.5rem 0' }}>
+                            Se eliminará a <strong style={{ color: 'var(--text-main)' }}>{deleteTarget.names} {deleteTarget.firstSurname}</strong> ({deleteTarget.idType}: {deleteTarget.idNumber}).
+                            Esta acción no se puede deshacer. Para confirmar, escribe <strong style={{ color: 'var(--accent)' }}>CONFIRMAR</strong>.
+                        </p>
+                        <input
+                            type="text"
+                            value={confirmWord}
+                            onChange={(e) => setConfirmWord(e.target.value)}
+                            placeholder="Escribe CONFIRMAR"
+                            style={{ width: '100%', padding: '0.8rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '1rem', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)', marginBottom: '1rem' }}
+                        />
+                        {deleteError && <p style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: 600 }}>{deleteError}</p>}
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                            <button onClick={closeDeleteConfirm} disabled={deleting} style={{ padding: '0.8rem 1.5rem', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+                            <button
+                                onClick={handleDelete}
+                                disabled={deleting || confirmWord.trim() !== 'CONFIRMAR'}
+                                style={{ padding: '0.8rem 1.5rem', borderRadius: '10px', border: 'none', background: 'var(--accent)', color: 'white', fontWeight: 700, cursor: confirmWord.trim() !== 'CONFIRMAR' ? 'not-allowed' : 'pointer', opacity: (deleting || confirmWord.trim() !== 'CONFIRMAR') ? 0.5 : 1 }}
+                            >
+                                {deleting ? 'Eliminando...' : 'Eliminar'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

@@ -11,6 +11,8 @@ const PatientDetail = () => {
     const [loading, setLoading] = useState(true);
     const [hasHistoria, setHasHistoria] = useState(null);
     const [creatingHistory, setCreatingHistory] = useState(false);
+    const [historiaError, setHistoriaError] = useState('');
+    const [createError, setCreateError] = useState('');
     
 
     useEffect(() => {
@@ -22,12 +24,11 @@ const PatientDetail = () => {
             setPatient(patientData);
 
             try {
-                await clinicaService.getHistoriaByPacienteId(id);
-                setHasHistoria(true);
+                // Sonda ligera (siempre 200): no genera 404 en consola si no hay historia.
+                const { data } = await clinicaService.historiaExists(id);
+                setHasHistoria(data?.exists === true);
             } catch (err) {
-                if (err.response?.status === 404) {
-                    setHasHistoria(false);
-                }
+                setHistoriaError(err.response?.data?.message || err.message || 'No se pudo verificar la historia clínica');
             }
         } catch (error) {
             console.error('Error loading patient data:', error);
@@ -43,10 +44,11 @@ const PatientDetail = () => {
     const handleCreateHistoria = async () => {
         try {
             setCreatingHistory(true);
+            setCreateError('');
             await clinicaService.createHistoria(id);
             navigate(`/patients/${id}/clinica`);
         } catch (error) {
-            alert('Error al crear historia clínica');
+            setCreateError(error.response?.data?.message || error.message || 'Error al crear historia clínica');
             setCreatingHistory(false);
         }
     };
@@ -84,6 +86,16 @@ const PatientDetail = () => {
                     Volver al listado
                 </button>
                 <div style={{ display: 'flex', gap: '0.8rem' }}>
+                    {historiaError && (
+                        <span style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: 600, alignSelf: 'center' }}>
+                            {historiaError}
+                        </span>
+                    )}
+                    {createError && (
+                        <span style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: 600, alignSelf: 'center' }}>
+                            {createError}
+                        </span>
+                    )}
                     {hasHistoria === false && (
                         <button 
                             onClick={handleCreateHistoria}

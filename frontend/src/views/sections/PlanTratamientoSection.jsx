@@ -32,6 +32,7 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [newPlan, setNewPlan] = useState({ descripcion: "", items: [] });
   const [newItem, setNewItem] = useState({ ...EMPTY_ITEM });
 
@@ -40,10 +41,16 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
   }, [historiaId]);
 
   const load = async () => {
+    setLoadError("");
     try {
       const res = await clinicaService.listPlanes(historiaId);
       setPlanes(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setPlanes([]);
+        return;
+      }
+      setLoadError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -87,6 +94,7 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
     try {
       const planToSave = {
         descripcion: newPlan.descripcion.trim(),
+        // eslint-disable-next-line no-unused-vars
         items: newPlan.items.map(({ _key, ...item }) => item),
       };
 
@@ -376,6 +384,12 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+        {loadError && (
+          <div style={{ border: "1px solid var(--accent)", background: "rgba(230, 57, 70, 0.08)", borderRadius: "8px", padding: "0.8rem 1rem", fontSize: "0.9rem", color: "var(--text-main)" }}>
+            <strong style={{ color: "var(--accent)" }}>No se pudieron cargar los planes. </strong>
+            {loadError}
+          </div>
+        )}
         {loading && (
           <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-secondary)" }}>
             Cargando planes...

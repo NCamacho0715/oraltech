@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
-  Save,
   Lock,
   ClipboardList,
   Activity,
@@ -12,6 +11,7 @@ import {
   ListChecks,
 } from "lucide-react";
 import clinicaService from "../services/clinicaService";
+import { parseFechaLocal } from "../utils/fechas";
 import AnamnesisForm from "./sections/AnamnesisForm";
 import AntecedentesForm from "./sections/AntecedentesForm";
 import ExamenClinicoForm from "./sections/ExamenClinicoForm";
@@ -23,8 +23,12 @@ import ConsentimientoSection from "./sections/ConsentimientoSection";
 import DiagnosticoTab from "./sections/DiagnosticoTab";
 import PlanTratamientoSection from "./sections/PlanTratamientoSection";
 
-const formatFechaHora = (valor) =>
-  valor ? new Date(valor).toLocaleString() : "—";
+const formatFechaHora = (valor) => {
+  if (!valor) return "—";
+  const d = parseFechaLocal(valor);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString();
+};
 
 const ClinicalHistory = () => {
   const { id: patientId } = useParams();
@@ -32,30 +36,35 @@ const ClinicalHistory = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [historia, setHistoria] = useState(null);
+  const [notFound, setNotFound] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [activeTab, setActiveTab] = useState("anamnesis");
 
   useEffect(() => {
     const loadHistoria = async () => {
       try {
         setLoading(true);
-        // Try to find if user has one
+        setError(null);
+        setNotFound(false);
+        // Sonda ligera primero (siempre 200): evita el 404 en consola
+        // cuando el paciente aún no tiene historia, y jamás crea nada.
+        const { data } = await clinicaService.historiaExists(patientId);
+        if (data?.exists !== true) {
+          setHistoria(null);
+          setNotFound(true);
+          return;
+        }
         const response =
           await clinicaService.getHistoriaByPacienteId(patientId);
         setHistoria(response.data);
       } catch (err) {
         if (err.response?.status === 404) {
-          // Create new one if not found
-          try {
-            const newHistory = await clinicaService.createHistoria(patientId);
-            setHistoria(newHistory.data);
-          } catch (createErr) {
-            setError(
-              "Error al crear historia clínica: " +
-                (createErr.response?.data?.message || "Error desconocido"),
-            );
-          }
+          setHistoria(null);
+          setNotFound(true);
         } else {
-          setError("Error al cargar historia clínica");
+          setError(
+            err.response?.data?.message || "Error al cargar historia clínica",
+          );
         }
       } finally {
         setLoading(false);
@@ -65,6 +74,38 @@ const ClinicalHistory = () => {
     loadHistoria();
   }, [patientId]);
 
+  // Creación explícita: solo desde la acción del usuario (aquí o en PatientDetail).
+  const handleCreateHistoria = async () => {
+    setCreating(true);
+    setError(null);
+    try {
+      const res = await clinicaService.createHistoria(patientId);
+      setHistoria(res.data);
+      setNotFound(false);
+    } catch (err) {
+      if (err.response?.status === 409) {
+        // Ya existe (carrera o doble clic): recargar en lugar de duplicar.
+        try {
+          const response =
+            await clinicaService.getHistoriaByPacienteId(patientId);
+          setHistoria(response.data);
+          setNotFound(false);
+        } catch (reloadErr) {
+          setError(
+            reloadErr.response?.data?.message ||
+              "Error al cargar historia clínica",
+          );
+        }
+      } else {
+        setError(
+          err.response?.data?.message || "Error al crear historia clínica",
+        );
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
   if (loading)
     return (
       <div className="flex justify-center items-center h-screen">
@@ -72,6 +113,53 @@ const ClinicalHistory = () => {
       </div>
     );
   if (error) return <div className="p-4 text-red-500">{error}</div>;
+
+  if (!historia) {
+    // notFound = 404 confirmado: invitar a crear explícitamente (nunca auto-crear).
+    if (!notFound) return null;
+    return (
+      <div
+        style={{
+          padding: "2rem",
+          maxWidth: "640px",
+          margin: "4rem auto",
+          textAlign: "center",
+        }}
+      >
+        <div
+          className="auth-card"
+          style={{ padding: "3rem 2rem", borderRadius: "16px" }}
+        >
+          <h1
+            style={{
+              color: "var(--text-main)",
+              fontSize: "1.6rem",
+              fontWeight: 700,
+              marginBottom: "1rem",
+            }}
+          >
+            Sin historia clínica
+          </h1>
+          <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
+            Este paciente aún no tiene historia clínica registrada.
+          </p>
+          <button
+            onClick={handleCreateHistoria}
+            disabled={creating}
+            className="btn-primary"
+            style={{
+              width: "auto",
+              padding: "0.8rem 2rem",
+              margin: "0 auto",
+              opacity: creating ? 0.7 : 1,
+            }}
+          >
+            {creating ? "Creando..." : "Crear historia clínica"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const isClosed = historia.estado === "CERRADA";
 

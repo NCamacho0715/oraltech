@@ -156,7 +156,7 @@ export default function BackupManager() {
       const r = await runBackup();
       setRunResult(r);
       if (r.success) load();
-    } catch (e) {
+    } catch {
       setRunResult({
         success: false,
         message: "Error de conexión con el servidor.",

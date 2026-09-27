@@ -6,13 +6,20 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
   const [data, setData] = useState({ motivoConsulta: '', estadoActual: '' });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     const load = async () => {
+      setLoadError('');
       try {
         const res = await clinicaService.getAnamnesis(historiaId);
         if (res.data) setData(res.data);
-      } catch (e) { /* ignore 404 */ }
+      } catch (err) {
+        // 404 = "aún no registrada": estado vacío, no error.
+        if (err?.response?.status === 404) return;
+        setLoadError(err?.response?.data?.message || err?.message || 'No se pudo cargar la anamnesis');
+      }
     };
     load();
   }, [historiaId]);
@@ -21,12 +28,13 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
     e.preventDefault();
     setSaving(true);
     setSaved(false);
+    setSaveError('');
     try {
       await clinicaService.upsertAnamnesis(historiaId, data);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      alert('Error al guardar anamnesis');
+      setSaveError(err?.response?.data?.message || err?.message || 'Error al guardar anamnesis');
     } finally {
       setSaving(false);
     }
@@ -38,6 +46,13 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
         <h3 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-main)', borderBottom: '2px solid rgba(0, 119, 182, 0.1)', paddingBottom: '1rem', marginBottom: '2rem' }}>
             Anamnesis
         </h3>
+
+        {loadError && (
+          <div style={{ border: '1px solid var(--accent)', background: 'rgba(230, 57, 70, 0.08)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            <strong style={{ color: 'var(--accent)' }}>No se pudo cargar la anamnesis. </strong>
+            {loadError}
+          </div>
+        )}
         
         <div style={{ marginBottom: '1.5rem' }}>
           <label style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Motivo de Consulta</label>
@@ -102,6 +117,7 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
               <Save size={18} /> 
               {saving ? 'Guardando...' : 'Guardar Anamnesis'}
             </button>
+            {saveError && <span style={{ color: 'var(--accent)', fontWeight: 500 }}>{saveError}</span>}
             {saved && <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 500 }}><CheckCircle size={18} /> Guardado</span>}
           </div>
         )}

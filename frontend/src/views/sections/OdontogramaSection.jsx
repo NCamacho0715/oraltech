@@ -20,6 +20,8 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
   });
   const [savingProtesis, setSavingProtesis] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     loadData();
@@ -36,9 +38,9 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
   const loadData = async () => {
     try {
       const res = await clinicaService.listOdontograma(historiaId);
-      setData(res.data);
-    } catch (e) {
-      console.error('Error loading odontogram:', e);
+      setData(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setLoadError(err?.response?.data?.message || err?.message || 'No se pudo cargar el odontograma');
     } finally {
       setLoading(false);
     }
@@ -48,39 +50,44 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
     try {
       const res = await clinicaService.getProtesis(historiaId);
       if (res.data) setProtesis(res.data);
-    } catch (e) {
-      console.error('Error loading protesis:', e);
+    } catch (err) {
+      // 404 = "aún no registrada": estado vacío, no error.
+      if (err?.response?.status === 404) return;
+      setLoadError(err?.response?.data?.message || err?.message || 'No se pudo cargar la prótesis');
     }
   };
 
   const handleApplyEvent = async (event) => {
+    setActionError('');
     try {
       const response = await clinicaService.createOdontogramaRegistro(historiaId, event);
       setData(prev => [...prev, response.data]);
     } catch (err) {
-      console.error('Error saving odontogram event:', err);
-      alert('Error en Registro: ' + (err.response?.data?.message || 'Error de datos'));
+      setActionError(err?.response?.data?.message || err?.message || 'Error de datos');
     }
   };
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
+    setActionError('');
     try {
       await clinicaService.deleteOdontogramaRegistro(historiaId, deleteConfirm);
       setData(prev => prev.filter(r => r.id !== deleteConfirm));
       setDeleteConfirm(null);
     } catch (err) {
       setDeleteConfirm(null);
+      setActionError(err?.response?.data?.message || err?.message || 'No se pudo eliminar el hallazgo');
     }
   };
 
   const handleSaveProtesis = async () => {
     setSavingProtesis(true);
+    setActionError('');
     try {
       await clinicaService.upsertProtesis(historiaId, protesis);
       setShowSuccess(true);
     } catch (err) {
-      console.error('Error saving protesis:', err);
+      setActionError(err?.response?.data?.message || err?.message || 'Error al guardar prótesis');
     } finally {
       setSavingProtesis(false);
     }
@@ -106,6 +113,12 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
       {/* Historial de Hallazgos */}
       <div style={{ marginTop: '3rem' }}>
           <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1rem' }}>Historial de Hallazgos</h4>
+          {(loadError || actionError) && (
+            <div style={{ border: '1px solid var(--accent)', background: 'rgba(230, 57, 70, 0.08)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+              <strong style={{ color: 'var(--accent)' }}>Ocurrió un problema. </strong>
+              {loadError || actionError}
+            </div>
+          )}
           <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '15px', background: 'var(--surface)', fontSize: '0.95rem', boxShadow: 'var(--shadow)' }}>
               {data.length === 0 && <p style={{ padding: '2rem', color: 'var(--text-secondary)', textAlign: 'center', margin: 0 }}>No se han registrado hallazgos clínicos.</p>}
               {data.slice().reverse().map((e, idx) => (

@@ -12,31 +12,39 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     loadData();
   }, [historiaId]);
 
   const loadData = async () => {
+    setLoadError('');
     try {
       const res = await clinicaService.getConsentimiento(historiaId);
       if (res.data) setData(res.data);
-    } catch (e) {}
+    } catch (err) {
+      // 404 = "aún no registrado": se conserva el contenido por defecto, no es error.
+      if (err?.response?.status === 404) return;
+      setLoadError(err?.response?.data?.message || err?.message || 'No se pudo cargar el consentimiento');
+    }
     finally { setLoading(false); }
   };
 
   const handleSave = async () => {
     if (!data.firmaPaciente) {
-        alert('Se requiere la firma del paciente');
+        setSaveError('Se requiere la firma del paciente');
         return;
     }
     setSaving(true);
+    setSaveError('');
     try {
       await clinicaService.upsertConsentimiento(historiaId, data);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      alert('Error al guardar consentimiento');
+      setSaveError(err?.response?.data?.message || err?.message || 'Error al guardar consentimiento');
     } finally {
       setSaving(false);
     }
@@ -55,6 +63,13 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
             <ShieldCheck size={28} style={{ color: 'var(--primary)' }} />
             Consentimiento Informado
         </h3>
+
+        {loadError && (
+          <div style={{ border: '1px solid var(--accent)', background: 'rgba(230, 57, 70, 0.08)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            <strong style={{ color: 'var(--accent)' }}>No se pudo cargar el consentimiento. </strong>
+            {loadError}
+          </div>
+        )}
         
         <div style={{ background: '#f8fafc', padding: '2rem', borderRadius: '12px', border: '1px dashed #cbd5e1', marginBottom: '2.5rem', color: 'var(--text-secondary)', fontSize: '1.05rem', fontStyle: 'italic', lineHeight: 1.6 }}>
             {readOnly ? (
@@ -109,6 +124,7 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
                 >
                     <Save size={22} /> {saving ? 'Guardando...' : 'Guardar Consentimiento Permanente'}
                 </button>
+                {saveError && <p style={{ color: 'var(--accent)', fontSize: '0.95rem', marginTop: '1rem', fontWeight: 700 }}>{saveError}</p>}
                 {saved && <p style={{ color: 'var(--success)', fontSize: '0.95rem', marginTop: '1rem', fontWeight: 700 }}>¡Consentimiento Guardado Exitosamente!</p>}
             </div>
         )}

@@ -20,14 +20,19 @@ const AnalisisPeriodontalForm = ({ historiaId, readOnly }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
+      setLoadError('');
       try {
         const res = await clinicaService.getAnalisisPeriodontal(historiaId);
         if (res.data) setData(res.data);
-      } catch (e) {
-        console.error('Error loading periodontal analysis:', e);
+      } catch (err) {
+        // 404 = "aún no registrado": estado vacío, no error.
+        if (err?.response?.status === 404) return;
+        setLoadError(err?.response?.data?.message || err?.message || 'No se pudo cargar el análisis periodontal');
       } finally {
         setLoading(false);
       }
@@ -37,13 +42,13 @@ const AnalisisPeriodontalForm = ({ historiaId, readOnly }) => {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError('');
     try {
       await clinicaService.upsertAnalisisPeriodontal(historiaId, data);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-    } catch (e) {
-      console.error('Error saving periodontal analysis:', e);
-      alert('Error al guardar análisis periodontal');
+    } catch (err) {
+      setSaveError(err?.response?.data?.message || err?.message || 'Error al guardar análisis periodontal');
     } finally {
       setSaving(false);
     }
@@ -70,6 +75,11 @@ const AnalisisPeriodontalForm = ({ historiaId, readOnly }) => {
         <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--accent)', margin: 0 }}>Análisis Periodontal</h3>
         {!readOnly && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {saveError && (
+              <span style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: 600 }}>
+                {saveError}
+              </span>
+            )}
             {showSuccess && (
               <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, animation: 'fadeIn 0.3s' }}>
                 <CheckCircle2 size={18} /> Guardado
@@ -81,6 +91,13 @@ const AnalisisPeriodontalForm = ({ historiaId, readOnly }) => {
           </div>
         )}
       </div>
+
+      {loadError && (
+        <div style={{ border: '1px solid var(--accent)', background: 'rgba(230, 57, 70, 0.08)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+          <strong style={{ color: 'var(--accent)' }}>No se pudo cargar el análisis periodontal. </strong>
+          {loadError}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
         <CheckboxRow id="bolsaPeriodontal" label="Bolsa periodontal" />

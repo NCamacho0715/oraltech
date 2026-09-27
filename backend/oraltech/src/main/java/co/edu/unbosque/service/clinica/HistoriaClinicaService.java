@@ -69,6 +69,15 @@ public class HistoriaClinicaService {
                         "Historia clínica no encontrada"));
     }
 
+    /**
+     * Sonda ligera (siempre 200) para saber si el paciente ya tiene historia,
+     * sin provocar un 404 en consola cuando aún no existe.
+     */
+    @Transactional(readOnly = true)
+    public boolean existsByPacienteId(Long pacienteId) {
+        return historiaRepo.existsByPacienteId(pacienteId);
+    }
+
     private HistoriaClinicaResponse toResponse(HistoriaClinica h) {
         return HistoriaClinicaResponse.builder()
                 .id(h.getId())

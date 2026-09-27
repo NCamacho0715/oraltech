@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, MessageSquare, User, Calendar } from 'lucide-react';
+import { PlusCircle, User, Calendar } from 'lucide-react';
 import clinicaService from '../../services/clinicaService';
 import { formatCOP, formatCOPInput, parseCOP } from '../../utils/copMoney';
 import { parseFechaLocal } from '../../utils/fechas';
@@ -47,6 +47,7 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
   const [newEvo, setNewEvo] = useState({ ...EMPTY_EVO });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [selected, setSelected] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
@@ -55,10 +56,17 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
   }, [historiaId]);
 
   const loadData = async () => {
+    setLoadError('');
     try {
       const res = await clinicaService.listEvoluciones(historiaId);
       setEvoluciones(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {}
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setEvoluciones([]);
+        return;
+      }
+      setLoadError(extractErrorMessage(err));
+    }
     finally { setLoading(false); }
   };
 
@@ -73,7 +81,8 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
           ? { ...it, firmaOdontologo: res.data.firmaOdontologo ?? null, firmaPaciente: res.data.firmaPaciente ?? null }
           : it
       ));
-    } catch (err) {
+    } catch {
+      // Sin detalle, se muestra la tarjeta del listado (sin firmas).
       setSelected(evo);
     } finally {
       setLoadingDetail(false);
@@ -249,6 +258,12 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {loadError && (
+          <div style={{ border: '1px solid var(--accent)', background: 'rgba(230, 57, 70, 0.08)', borderRadius: '8px', padding: '0.8rem 1rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            <strong style={{ color: 'var(--accent)' }}>No se pudieron cargar las evoluciones. </strong>
+            {loadError}
+          </div>
+        )}
         {loading && <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Cargando historial...</div>}
         {evoluciones.length === 0 && !loading && !showForm && (
           <div style={{ padding: '3rem', textAlign: 'center', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--surface)', color: 'var(--text-secondary)', fontStyle: 'italic' }}>

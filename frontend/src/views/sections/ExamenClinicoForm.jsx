@@ -50,12 +50,15 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     loadData();
   }, [historiaId]);
 
   const loadData = async () => {
+    setLoadError('');
     try {
       const res = await clinicaService.getExamen(historiaId);
       if (res.data) {
@@ -65,7 +68,11 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
           });
           setData(prev => ({ ...prev, ...cleanData }));
       }
-    } catch (e) {}
+    } catch (err) {
+      // 404 = "aún no registrado": estado vacío, no error.
+      if (err?.response?.status === 404) return;
+      setLoadError(err?.response?.data?.message || err?.message || 'No se pudo cargar el examen clínico');
+    }
   };
 
   const handleChange = (field, value) => {
@@ -75,12 +82,13 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    setSaveError('');
     try {
       await clinicaService.upsertExamen(historiaId, data);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      alert('Error al guardar examen clínico');
+      setSaveError(err?.response?.data?.message || err?.message || 'Error al guardar examen clínico');
     } finally {
       setSaving(false);
     }
@@ -94,6 +102,13 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
         <h3 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-main)', borderBottom: '2px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '2rem' }}>
             Examen Clínico
         </h3>
+
+        {loadError && (
+          <div style={{ border: '1px solid var(--accent)', background: 'rgba(230, 57, 70, 0.08)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+            <strong style={{ color: 'var(--accent)' }}>No se pudo cargar el examen clínico. </strong>
+            {loadError}
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem' }}>
             
@@ -224,6 +239,7 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
             <button type="submit" disabled={saving} className="btn-primary" style={{ width: 'auto', padding: '0.8rem 2.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: saving ? 0.7 : 1, margin: 0 }}>
               <Save size={18} /> {saving ? 'Guardando...' : 'Guardar Examen'}
             </button>
+            {saveError && <span style={{ color: 'var(--accent)', fontWeight: 500 }}>{saveError}</span>}
             {saved && <span style={{ color: 'var(--success)', fontWeight: 500 }}><CheckCircle size={18} /> Guardado</span>}
           </div>
         )}

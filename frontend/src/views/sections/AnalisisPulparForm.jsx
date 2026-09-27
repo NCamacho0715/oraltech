@@ -17,14 +17,19 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
+      setLoadError('');
       try {
         const res = await clinicaService.getAnalisisPulpar(historiaId);
         if (res.data) setData(res.data);
-      } catch (e) {
-        console.error('Error loading pulpar analysis:', e);
+      } catch (err) {
+        // 404 = "aún no registrado": estado vacío, no error.
+        if (err?.response?.status === 404) return;
+        setLoadError(err?.response?.data?.message || err?.message || 'No se pudo cargar el análisis pulpar');
       } finally {
         setLoading(false);
       }
@@ -34,13 +39,13 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError('');
     try {
       await clinicaService.upsertAnalisisPulpar(historiaId, data);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
-    } catch (e) {
-      console.error('Error saving pulpar analysis:', e);
-      alert('Error al guardar análisis pulpar');
+    } catch (err) {
+      setSaveError(err?.response?.data?.message || err?.message || 'Error al guardar análisis pulpar');
     } finally {
       setSaving(false);
     }
@@ -67,6 +72,11 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
         <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--primary)', margin: 0 }}>Análisis Pulpar - Endodóntico</h3>
         {!readOnly && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {saveError && (
+              <span style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: 600 }}>
+                {saveError}
+              </span>
+            )}
             {showSuccess && (
               <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, animation: 'fadeIn 0.3s' }}>
                 <CheckCircle2 size={18} /> Guardado
@@ -78,6 +88,13 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
           </div>
         )}
       </div>
+
+      {loadError && (
+        <div style={{ border: '1px solid var(--accent)', background: 'rgba(230, 57, 70, 0.08)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+          <strong style={{ color: 'var(--accent)' }}>No se pudo cargar el análisis pulpar. </strong>
+          {loadError}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
         <CheckboxRow id="cuellosSensibles" label="Cuellos sensibles" />
