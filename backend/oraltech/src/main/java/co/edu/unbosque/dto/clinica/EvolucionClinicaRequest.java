@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 @Data
 public class EvolucionClinicaRequest {
     private Long citaId;
+    private Boolean esUrgencia;
     private Short numeroDiente;
     private String procedimiento;
     private String observaciones;

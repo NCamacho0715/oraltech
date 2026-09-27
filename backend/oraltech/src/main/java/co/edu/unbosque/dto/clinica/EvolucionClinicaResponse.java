@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 public class EvolucionClinicaResponse {
     private Long id;
     private Long citaId;
+    private Boolean esUrgencia;
     private LocalDate fecha;
     private Short numeroDiente;
     private String procedimiento;

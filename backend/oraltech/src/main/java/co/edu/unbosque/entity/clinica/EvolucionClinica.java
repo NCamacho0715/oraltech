@@ -27,6 +27,10 @@ public class EvolucionClinica {
     @Column(name = "cita_id")
     private Long citaId;
 
+    @Column(name = "es_urgencia", nullable = false)
+    @Builder.Default
+    private Boolean esUrgencia = false;
+
     @Column(nullable = false)
     private LocalDate fecha;
 

@@ -406,7 +406,7 @@ const ClinicalHistory = () => {
             />
           )}
           {activeTab === "evoluciones" && (
-            <EvolucionesSection historiaId={historia.id} readOnly={isClosed} />
+            <EvolucionesSection historiaId={historia.id} patientId={patientId} readOnly={isClosed} />
           )}
           {activeTab === "consentimiento" && (
             <ConsentimientoSection

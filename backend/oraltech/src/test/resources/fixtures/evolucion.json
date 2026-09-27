@@ -5,6 +5,7 @@
   "numeroDiente": 16,
   "abono": 150000,
   "saldo": 0,
+  "esUrgencia": false,
   "firmaPaciente": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
   "firmaOdontologo": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 }

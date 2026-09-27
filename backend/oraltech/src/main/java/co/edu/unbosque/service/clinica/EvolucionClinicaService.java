@@ -3,6 +3,7 @@ package co.edu.unbosque.service.clinica;
 import co.edu.unbosque.dto.clinica.EvolucionClinicaListResponse;
 import co.edu.unbosque.dto.clinica.EvolucionClinicaRequest;
 import co.edu.unbosque.dto.clinica.EvolucionClinicaResponse;
+import co.edu.unbosque.entity.Appointment;
 import co.edu.unbosque.entity.clinica.EvolucionClinica;
 import co.edu.unbosque.entity.clinica.HistoriaClinica;
 import co.edu.unbosque.repository.AppointmentRepository;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -58,9 +60,35 @@ public class EvolucionClinicaService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "citaId inválido: " + req.getCitaId());
             }
-            if (!appointmentRepository.existsById(req.getCitaId())) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Cita no encontrada: " + req.getCitaId());
+            Appointment cita = appointmentRepository.findById(req.getCitaId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                            "Cita no encontrada: " + req.getCitaId()));
+            if (!cita.getPatient().getId().equals(historia.getPaciente().getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "La cita seleccionada pertenece a otro paciente");
+            }
+            if (!LocalDate.now().equals(cita.getAppointmentDate())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "La cita seleccionada no está programada para hoy");
+            }
+            // La atención quedó registrada: la cita pasa a completada
+            // (el calendario la muestra en verde).
+            cita.setStatus("COMPLETADA");
+            appointmentRepository.save(cita);
+        }
+
+        // HU-3: paciente recurrente (historia con evoluciones previas) exige
+        // cita del día o marca de urgencia; son excluyentes. En primera
+        // consulta la cita sigue siendo opcional (validada arriba si viene).
+        boolean esUrgencia = Boolean.TRUE.equals(req.getEsUrgencia());
+        if (repo.existsByHistoriaClinicaId(historiaId)) {
+            if (req.getCitaId() == null && !esUrgencia) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "En pacientes con atención previa la evolución requiere la cita del día o atención por urgencia");
+            }
+            if (req.getCitaId() != null && esUrgencia) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "citaId no aplica en urgencias: la atención por urgencia no tiene cita programada");
             }
         }
 
@@ -71,6 +99,7 @@ public class EvolucionClinicaService {
         EvolucionClinica evo = EvolucionClinica.builder()
                 .historiaClinica(historia)
                 .citaId(req.getCitaId())
+                .esUrgencia(esUrgencia)
                 .numeroDiente(req.getNumeroDiente())
                 .procedimiento(req.getProcedimiento())
                 .observaciones(req.getObservaciones())
@@ -122,6 +151,7 @@ public class EvolucionClinicaService {
         return EvolucionClinicaListResponse.builder()
                 .id(e.getId())
                 .citaId(e.getCitaId())
+                .esUrgencia(e.getEsUrgencia())
                 .fecha(e.getFecha())
                 .numeroDiente(e.getNumeroDiente())
                 .procedimiento(e.getProcedimiento())
@@ -139,6 +169,7 @@ public class EvolucionClinicaService {
         return EvolucionClinicaResponse.builder()
                 .id(e.getId())
                 .citaId(e.getCitaId())
+                .esUrgencia(e.getEsUrgencia())
                 .fecha(e.getFecha())
                 .numeroDiente(e.getNumeroDiente())
                 .procedimiento(e.getProcedimiento())

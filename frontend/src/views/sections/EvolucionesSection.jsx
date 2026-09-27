@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, User, Calendar } from 'lucide-react';
 import clinicaService from '../../services/clinicaService';
+import { getAppointmentsByRange } from '../../services/appointmentService';
 import { formatCOP, formatCOPInput, parseCOP } from '../../utils/copMoney';
 import { parseFechaLocal } from '../../utils/fechas';
 import SignatureCanvas from '../../components/clinica/SignatureCanvas';
@@ -8,7 +9,8 @@ import SignatureCanvas from '../../components/clinica/SignatureCanvas';
 // Decisión de modelo (documentada en docs/evoluciones-modelo.md):
 // La UI captura exactamente los campos de EvolucionClinicaRequest:
 // procedimiento (obligatorio), observaciones, numeroDiente, abono, saldo,
-// citaId, firmaPaciente, firmaOdontologo. No existe `descripcion`.
+// citaId (selector de citas del día), esUrgencia (checkbox excluyente con cita),
+// firmaPaciente, firmaOdontologo. No existe `descripcion`.
 // La lista lee `fecha` (EvolucionClinicaListResponse), nunca createdAt/descripcion.
 
 const EMPTY_EVO = {
@@ -18,8 +20,17 @@ const EMPTY_EVO = {
   abono: '',
   saldo: '',
   citaId: '',
+  esUrgencia: false,
   firmaPaciente: '',
   firmaOdontologo: ''
+};
+
+// Fecha local YYYY-MM-DD sin desfase UTC (para pedir las citas del día).
+const hoyLocal = () => {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
 };
 
 // Formatea `fecha` de EvolucionClinicaListResponse/Response.
@@ -40,7 +51,7 @@ const toSignatureSrc = (sig) => {
 const extractErrorMessage = (err) =>
   err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Error al crear evolución';
 
-const EvolucionesSection = ({ historiaId, readOnly }) => {
+const EvolucionesSection = ({ historiaId, patientId, readOnly }) => {
   const [evoluciones, setEvoluciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -50,10 +61,30 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
   const [loadError, setLoadError] = useState('');
   const [selected, setSelected] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [citasHoy, setCitasHoy] = useState([]);
+  const [loadingCitas, setLoadingCitas] = useState(false);
 
   useEffect(() => {
     loadData();
   }, [historiaId]);
+
+  // HU-3: al abrir el formulario se cargan las citas programadas del día.
+  useEffect(() => {
+    if (!showForm) return;
+    const loadCitas = async () => {
+      setLoadingCitas(true);
+      try {
+        const hoy = hoyLocal();
+        const data = await getAppointmentsByRange(hoy, hoy);
+        setCitasHoy(Array.isArray(data) ? data : []);
+      } catch {
+        setCitasHoy([]);
+      } finally {
+        setLoadingCitas(false);
+      }
+    };
+    loadCitas();
+  }, [showForm]);
 
   const loadData = async () => {
     setLoadError('');
@@ -93,15 +124,22 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
     const payload = {
       procedimiento: newEvo.procedimiento.trim(),
       observaciones: newEvo.observaciones?.trim() || null,
+      esUrgencia: !!newEvo.esUrgencia,
       firmaPaciente: newEvo.firmaPaciente || null,
       firmaOdontologo: newEvo.firmaOdontologo || null
     };
     if (newEvo.numeroDiente !== '') payload.numeroDiente = Number(newEvo.numeroDiente);
     if (parseCOP(newEvo.abono) !== null) payload.abono = parseCOP(newEvo.abono);
     if (parseCOP(newEvo.saldo) !== null) payload.saldo = parseCOP(newEvo.saldo);
-    if (newEvo.citaId !== '') payload.citaId = Number(newEvo.citaId);
+    // En urgencias la cita no aplica: nunca se envía citaId.
+    if (!newEvo.esUrgencia && newEvo.citaId !== '') payload.citaId = Number(newEvo.citaId);
     return payload;
   };
+
+  // HU-3: la cita seleccionada debe pertenecer al paciente de la historia.
+  const citaSeleccionada = citasHoy.find((c) => String(c.id) === String(newEvo.citaId));
+  const citaDeOtroPaciente = !!citaSeleccionada && Number(citaSeleccionada.patientId) !== Number(patientId);
+  const esRecurrente = evoluciones.length > 0;
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -116,6 +154,10 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
     }
     if (!newEvo.firmaPaciente) {
       setFormError('Se requiere la firma del paciente');
+      return;
+    }
+    if (!newEvo.esUrgencia && citaDeOtroPaciente) {
+      setFormError('La cita seleccionada pertenece a otro paciente');
       return;
     }
     setSaving(true);
@@ -212,17 +254,44 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Cita (opcional)</label>
-              <input
-                type="number"
-                min="1"
-                step="1"
+              <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+                Cita de hoy {esRecurrente && !newEvo.esUrgencia ? '(requerida)' : '(opcional)'}
+              </label>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.5rem 0' }}>
+                Al registrar la evolución, la cita pasará a Completada en el calendario.
+              </p>              <select
                 value={newEvo.citaId}
+                disabled={newEvo.esUrgencia || loadingCitas}
                 onChange={e => setNewEvo({...newEvo, citaId: e.target.value})}
-                placeholder="ID cita"
-                style={{ width: '100%', padding: '0.7rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.95rem', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)' }}
-              />
+                style={{ width: '100%', padding: '0.7rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.95rem', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)', opacity: newEvo.esUrgencia ? 0.5 : 1 }}
+              >
+                <option value="">{loadingCitas ? 'Cargando citas...' : (citasHoy.length === 0 ? 'Sin citas programadas hoy' : 'Selecciona la cita...')}</option>
+                {citasHoy.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {(c.startTime || '').slice(0, 5)} · {c.patientName || `Paciente ${c.patientId}`} · {c.title || ''}
+                  </option>
+                ))}
+              </select>
+              {citaDeOtroPaciente && !newEvo.esUrgencia && (
+                <p style={{ color: '#e63946', fontSize: '0.85rem', fontWeight: 600, margin: '0.4rem 0 0 0' }}>
+                  Esta cita pertenece a otro paciente
+                </p>
+              )}
             </div>
+          </div>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', cursor: 'pointer', background: 'var(--secondary-soft)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.8rem 1rem' }}>
+              <input
+                type="checkbox"
+                checked={!!newEvo.esUrgencia}
+                onChange={e => setNewEvo({...newEvo, esUrgencia: e.target.checked, citaId: e.target.checked ? '' : newEvo.citaId})}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--accent)' }}
+              />
+              <span style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                Atención por urgencia (sin cita, esperó en sala)
+              </span>
+            </label>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
@@ -287,14 +356,20 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
                 <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'var(--secondary-soft)', color: 'var(--success)', borderRadius: '4px', fontWeight: 700, textTransform: 'uppercase' }}>
                     Procedimiento
                 </span>
+                {evo.esUrgencia && (
+                  <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', background: 'rgba(230, 57, 70, 0.12)', color: 'var(--accent)', borderRadius: '4px', fontWeight: 700, textTransform: 'uppercase', marginLeft: '0.5rem' }}>
+                    Urgencia
+                  </span>
+                )}
               </div>
               <p style={{ margin: 0, color: 'var(--text-main)', fontSize: '0.95rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{evo.procedimiento}</p>
               {evo.observaciones && <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{evo.observaciones}</p>}
-              {(evo.numeroDiente != null || evo.abono != null || evo.saldo != null) && (
+              {(evo.numeroDiente != null || evo.abono != null || evo.saldo != null || evo.citaId != null) && (
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '0.8rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                   {evo.numeroDiente != null && <span>Diente: {evo.numeroDiente}</span>}
                   {evo.abono != null && <span>Abono: $ {formatCOP(evo.abono)}</span>}
                   {evo.saldo != null && <span>Saldo: $ {formatCOP(evo.saldo)}</span>}
+                  {evo.citaId != null && <span>Cita #{evo.citaId}</span>}
                 </div>
               )}
               <div style={{ paddingTop: '1rem', marginTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
@@ -316,6 +391,11 @@ const EvolucionesSection = ({ historiaId, readOnly }) => {
                   <button type="button" onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Cerrar</button>
                 </div>
                 <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{formatFecha(selected.fecha)}</p>
+                {(selected.esUrgencia || selected.citaId != null) && (
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    {selected.esUrgencia ? 'Atención por urgencia (sin cita)' : `Cita #${selected.citaId}`}
+                  </p>
+                )}
                 <p style={{ color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{selected.procedimiento}</p>
                 {selected.observaciones && <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{selected.observaciones}</p>}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1.5rem' }}>
