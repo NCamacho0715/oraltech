@@ -3,6 +3,8 @@ package co.edu.unbosque.dto.clinica;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 public class AntecedentesResponse {
@@ -64,4 +66,9 @@ public class AntecedentesResponse {
 
     // Observaciones
     private String observaciones;
+
+    private LocalDateTime createdAt;
+    private String createdBy;
+    private LocalDateTime updatedAt;
+    private String updatedBy;
 }

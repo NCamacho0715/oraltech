@@ -3,6 +3,8 @@ package co.edu.unbosque.dto.clinica;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 public class OdontogramaProtesisResponse {
@@ -15,4 +17,9 @@ public class OdontogramaProtesisResponse {
     private Boolean removibleMetInferior;
     private String fijaSuperior;
     private String fijaInferior; 
+
+    private LocalDateTime createdAt;
+    private String createdBy;
+    private LocalDateTime updatedAt;
+    private String updatedBy;
 }

@@ -4,6 +4,7 @@ import co.edu.unbosque.dto.clinica.DiagnosticoRequest;
 import co.edu.unbosque.dto.clinica.DiagnosticoResponse;
 import co.edu.unbosque.entity.clinica.Diagnostico;
 import co.edu.unbosque.entity.clinica.HistoriaClinica;
+import co.edu.unbosque.entity.clinica.SeccionHistoria;
 import co.edu.unbosque.repository.clinica.DiagnosticoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -20,13 +22,22 @@ public class DiagnosticoService {
     private final DiagnosticoRepository repo;
     private final HistoriaClinicaService historiaService;
     private final HistoriaClinicaGuard guard;
+    private final DesbloqueoService desbloqueoService;
 
     @Transactional
     public DiagnosticoResponse upsert(UUID historiaId, DiagnosticoRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
-        Diagnostico d = repo.findByHistoriaClinicaId(historiaId)
+        boolean desbloqueado = desbloqueoService.consumirSiVigente(historiaId, SeccionHistoria.DIAGNOSTICO);
+        Optional<Diagnostico> existente = repo.findByHistoriaClinicaId(historiaId);
+        if (existente.isPresent() && !desbloqueado) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    SeccionHistoria.DIAGNOSTICO.mensajeBloqueo());
+        }
+
+        Diagnostico d = existente
                 .orElseGet(() -> {
                     Diagnostico newD = new Diagnostico();
                     newD.setHistoriaClinica(historia);
@@ -63,6 +74,10 @@ public class DiagnosticoService {
                 .funcional(d.getFuncional())
                 .esqueleticoFacial(d.getEsqueleticoFacial())
                 .otros(d.getOtros())
+                .createdAt(d.getAudit().getCreatedAt())
+                .createdBy(d.getAudit().getCreatedBy())
+                .updatedAt(d.getAudit().getUpdatedAt())
+                .updatedBy(d.getAudit().getUpdatedBy())
                 .build();
     }
 }

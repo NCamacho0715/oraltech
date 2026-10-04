@@ -67,13 +67,20 @@ class ClinicalControllersTest {
 
     private static final UUID HC = UUID.randomUUID();
 
+    private String loadFixture(String fixtureName) throws java.io.IOException {
+        org.springframework.core.io.ClassPathResource resource = new org.springframework.core.io.ClassPathResource("fixtures/" + fixtureName);
+        try (java.io.InputStream is = resource.getInputStream()) {
+            return new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+    }
+
     // ── Anamnesis ─────────────────────────────────────────────────────
 
     @Test @DisplayName("PUT /anamnesis → 200")
     void upsertAnamnesis() throws Exception {
         when(anamnesisService.upsert(eq(HC), any())).thenReturn(mock(AnamnesisResponse.class));
         mockMvc.perform(put("/api/historias/" + HC + "/anamnesis")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("anamnesis.json")))
                 .andExpect(status().isOk());
     }
 
@@ -89,7 +96,7 @@ class ClinicalControllersTest {
     void upsertAntecedentes() throws Exception {
         when(antecedentesService.upsert(eq(HC), any())).thenReturn(mock(AntecedentesResponse.class));
         mockMvc.perform(put("/api/historias/" + HC + "/antecedentes")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("antecedentes.json")))
                 .andExpect(status().isOk());
     }
 
@@ -105,7 +112,7 @@ class ClinicalControllersTest {
     void upsertPeriodontal() throws Exception {
         when(analisisPeriodontalService.upsert(eq(HC), any())).thenReturn(mock(AnalisisPeriodontalResponse.class));
         mockMvc.perform(put("/api/historias/" + HC + "/analisis-periodontal")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("analisis-periodontal.json")))
                 .andExpect(status().isOk());
     }
 
@@ -121,7 +128,7 @@ class ClinicalControllersTest {
     void upsertPulpar() throws Exception {
         when(analisisPulparService.upsert(eq(HC), any())).thenReturn(mock(AnalisisPulparResponse.class));
         mockMvc.perform(put("/api/historias/" + HC + "/analisis-pulpar")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("analisis-pulpar.json")))
                 .andExpect(status().isOk());
     }
 
@@ -137,7 +144,7 @@ class ClinicalControllersTest {
     void upsertConsentimiento() throws Exception {
         when(consentimientoService.upsert(eq(HC), any())).thenReturn(mock(ConsentimientoResponse.class));
         mockMvc.perform(post("/api/historias/" + HC + "/consentimiento")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("consentimiento.json")))
                 .andExpect(status().isCreated());
     }
 
@@ -153,7 +160,7 @@ class ClinicalControllersTest {
     void upsertDiagnostico() throws Exception {
         when(diagnosticoService.upsert(eq(HC), any())).thenReturn(mock(DiagnosticoResponse.class));
         mockMvc.perform(put("/api/historias/" + HC + "/diagnostico")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("diagnostico.json")))
                 .andExpect(status().isOk());
     }
 
@@ -169,7 +176,7 @@ class ClinicalControllersTest {
     void createEvolucion() throws Exception {
         when(evolucionClinicaService.create(eq(HC), any())).thenReturn(mock(EvolucionClinicaResponse.class));
         mockMvc.perform(post("/api/historias/" + HC + "/evoluciones")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("evolucion.json")))
                 .andExpect(status().isCreated());
     }
 
@@ -191,7 +198,7 @@ class ClinicalControllersTest {
     void upsertExamenClinico() throws Exception {
         when(examenClinicoService.upsert(eq(HC), any())).thenReturn(mock(ExamenClinicoResponse.class));
         mockMvc.perform(put("/api/historias/" + HC + "/examen")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("examen.json")))
                 .andExpect(status().isOk());
     }
 
@@ -207,7 +214,7 @@ class ClinicalControllersTest {
     void createInterconsulta() throws Exception {
         when(interconsultaService.create(eq(HC), any())).thenReturn(mock(InterconsultaResponse.class));
         mockMvc.perform(post("/api/historias/" + HC + "/interconsultas")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("interconsulta.json")))
                 .andExpect(status().isCreated());
     }
 
@@ -223,7 +230,7 @@ class ClinicalControllersTest {
     void createOdontograma() throws Exception {
         when(odontogramaService.create(eq(HC), any())).thenReturn(mock(OdontogramaRegistroResponse.class));
         mockMvc.perform(post("/api/historias/" + HC + "/odontograma")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("odontograma.json")))
                 .andExpect(status().isCreated());
     }
 
@@ -233,11 +240,7 @@ class ClinicalControllersTest {
         mockMvc.perform(get("/api/historias/" + HC + "/odontograma")).andExpect(status().isOk());
     }
 
-    @Test @DisplayName("DELETE /odontograma/{id} → 204")
-    void deleteOdontograma() throws Exception {
-        doNothing().when(odontogramaService).delete(HC, 1L);
-        mockMvc.perform(delete("/api/historias/" + HC + "/odontograma/1")).andExpect(status().isNoContent());
-    }
+    // HU-2: sin DELETE de registros (inmutables; solo cambia estado vía evolución).
 
     // ── OdontogramaProtesis ───────────────────────────────────────────
 
@@ -245,7 +248,7 @@ class ClinicalControllersTest {
     void upsertProtesis() throws Exception {
         when(odontogramaProtesisService.upsert(eq(HC), any())).thenReturn(mock(OdontogramaProtesisResponse.class));
         mockMvc.perform(put("/api/historias/" + HC + "/odontograma/protesis")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("protesis.json")))
                 .andExpect(status().isOk());
     }
 
@@ -261,7 +264,7 @@ class ClinicalControllersTest {
     void createPlan() throws Exception {
         when(planTratamientoService.create(eq(HC), any())).thenReturn(mock(PlanTratamientoResponse.class));
         mockMvc.perform(post("/api/historias/" + HC + "/plan")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("plan.json")))
                 .andExpect(status().isCreated());
     }
 
@@ -277,7 +280,7 @@ class ClinicalControllersTest {
     void upsertPronostico() throws Exception {
         when(pronosticoService.upsert(eq(HC), any())).thenReturn(mock(PronosticoResponse.class));
         mockMvc.perform(put("/api/historias/" + HC + "/pronostico")
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .contentType(MediaType.APPLICATION_JSON).content(loadFixture("pronostico.json")))
                 .andExpect(status().isOk());
     }
 

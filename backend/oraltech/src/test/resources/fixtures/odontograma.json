@@ -1,0 +1,8 @@
+{
+  "_comment": "Este objeto debe mantenerse idéntico al payload que construye frontend/src/views/sections/OdontogramaSection.jsx. Si agregas un campo en la UI, agrégalo aquí en el mismo commit.",
+  "numeroDiente": 16,
+  "cara": "CENTRO",
+  "tipoEvento": "CARIES",
+  "estado": "ACTIVO",
+  "observacion": "Cariado"
+}

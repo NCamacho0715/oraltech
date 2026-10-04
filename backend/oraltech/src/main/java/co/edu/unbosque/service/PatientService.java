@@ -2,8 +2,11 @@ package co.edu.unbosque.service;
 
 import co.edu.unbosque.entity.Patient;
 import co.edu.unbosque.repository.PatientRepository;
+import co.edu.unbosque.repository.clinica.HistoriaClinicaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +16,7 @@ import java.util.Optional;
 public class PatientService {
 
     private final PatientRepository patientRepository;
+    private final HistoriaClinicaRepository historiaClinicaRepository;
 
     public List<Patient> getAllPatients() {
         return patientRepository.findAll();
@@ -66,7 +70,12 @@ public class PatientService {
 
     public void deletePatient(Long id) {
         Patient patient = patientRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Patient not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Paciente no encontrado"));
+        if (historiaClinicaRepository.existsByPacienteId(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "No se puede eliminar el paciente porque tiene historia clínica registrada");
+        }
         patientRepository.delete(patient);
     }
 }

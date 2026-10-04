@@ -5,12 +5,14 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
 public class EvolucionClinicaResponse {
     private Long id;
     private Long citaId;
+    private Boolean esUrgencia;
     private LocalDate fecha;
     private Short numeroDiente;
     private String procedimiento;
@@ -20,4 +22,9 @@ public class EvolucionClinicaResponse {
     // Signatures included — detail view only
     private String firmaPaciente;
     private String firmaOdontologo;
+
+    private LocalDateTime createdAt;
+    private String createdBy;
+    private LocalDateTime updatedAt;
+    private String updatedBy;
 }

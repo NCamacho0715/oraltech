@@ -12,15 +12,21 @@ const getAuthHeader = () => {
 
 const clinicaService = {
   // Historia Clinica
+  // El odontólogo de apertura lo resuelve el backend desde el JWT (nunca del body).
   createHistoria: (patientId) =>
     axios.post(
       `${API_URL}/historias`,
-      { pacienteId: patientId, odontologoId: 1 },
+      { pacienteId: patientId },
       { headers: getAuthHeader() },
     ),
 
   getHistoriaByPacienteId: (patientId) =>
     axios.get(`${API_URL}/historias/paciente/${patientId}`, {
+      headers: getAuthHeader(),
+    }),
+
+  historiaExists: (patientId) =>
+    axios.get(`${API_URL}/historias/paciente/${patientId}/exists`, {
       headers: getAuthHeader(),
     }),
 
@@ -133,7 +139,7 @@ const clinicaService = {
       headers: getAuthHeader(),
     }),
 
-  // Odontograma
+  // Odontograma (HU-2: registros inmutables, sin borrado)
   listOdontograma: (historiaId) =>
     axios.get(`${API_URL}/historias/${historiaId}/odontograma`, {
       headers: getAuthHeader(),
@@ -143,12 +149,6 @@ const clinicaService = {
     axios.post(`${API_URL}/historias/${historiaId}/odontograma`, data, {
       headers: getAuthHeader(),
     }),
-
-  deleteOdontogramaRegistro: (historiaId, registroId) =>
-    axios.delete(
-      `${API_URL}/historias/${historiaId}/odontograma/${registroId}`,
-      { headers: getAuthHeader() },
-    ),
 
   // Protesis
   getProtesis: (historiaId) =>
@@ -182,6 +182,25 @@ const clinicaService = {
     axios.put(`${API_URL}/historias/${historiaId}/analisis-periodontal`, data, {
       headers: getAuthHeader(),
     }),
+
+  // Exámenes Complementarios (HU-4, sección inmutable: crear-una-vez)
+  getExamenComplementario: (historiaId) =>
+    axios.get(`${API_URL}/historias/${historiaId}/examen-complementario`, {
+      headers: getAuthHeader(),
+    }),
+
+  upsertExamenComplementario: (historiaId, data) =>
+    axios.put(`${API_URL}/historias/${historiaId}/examen-complementario`, data, {
+      headers: getAuthHeader(),
+    }),
+
+  // Desbloqueo excepcional ADMIN de secciones inmutables (HU-2, un solo uso)
+  solicitarDesbloqueo: (historiaId, seccion, motivo) =>
+    axios.post(
+      `${API_URL}/historias/${historiaId}/${seccion}/desbloqueo`,
+      { motivo },
+      { headers: getAuthHeader() },
+    ),
 };
 
 export default clinicaService;

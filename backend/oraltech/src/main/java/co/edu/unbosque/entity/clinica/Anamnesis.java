@@ -2,8 +2,10 @@ package co.edu.unbosque.entity.clinica;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "anamnesis")
 @Data
 @Builder
@@ -29,9 +31,4 @@ public class Anamnesis {
     @Builder.Default
     private AuditFields audit = new AuditFields();
 
-    @PrePersist
-    public void prePersist() { this.audit.prePersist(); }
-
-    @PreUpdate
-    public void preUpdate() { this.audit.preUpdate(); }
 }

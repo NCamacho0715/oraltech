@@ -2,6 +2,7 @@ package co.edu.unbosque.service;
 
 import co.edu.unbosque.entity.Patient;
 import co.edu.unbosque.repository.PatientRepository;
+import co.edu.unbosque.repository.clinica.HistoriaClinicaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,6 +10,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.Collections;
@@ -24,6 +27,9 @@ class PatientServiceTest {
 
     @Mock
     private PatientRepository patientRepository;
+
+    @Mock
+    private HistoriaClinicaRepository historiaClinicaRepository;
 
     @InjectMocks
     private PatientService patientService;
@@ -251,6 +257,7 @@ class PatientServiceTest {
     void shouldDeletePatientSuccessfully() {
         // GIVEN
         when(patientRepository.findById(1L)).thenReturn(Optional.of(testPatient));
+        when(historiaClinicaRepository.existsByPacienteId(1L)).thenReturn(false);
 
         // WHEN
         patientService.deletePatient(1L);
@@ -261,18 +268,34 @@ class PatientServiceTest {
     }
 
     @Test
-    @DisplayName("UT-PAT-12: Debería lanzar excepción al eliminar un paciente inexistente")
+    @DisplayName("UT-PAT-12: Debería lanzar 404 al eliminar un paciente inexistente")
     void shouldThrowExceptionWhenDeletingNonExistentPatient() {
         // GIVEN
         when(patientRepository.findById(99L)).thenReturn(Optional.empty());
 
         // WHEN & THEN
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
             patientService.deletePatient(99L);
         });
 
-        assertEquals("Patient not found", exception.getMessage());
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
         verify(patientRepository, times(1)).findById(99L);
+        verify(patientRepository, never()).delete(any(Patient.class));
+    }
+
+    @Test
+    @DisplayName("UT-PAT-13: Debería lanzar 409 al eliminar un paciente con historia clínica")
+    void shouldThrowConflictWhenDeletingPatientWithHistoria() {
+        // GIVEN
+        when(patientRepository.findById(1L)).thenReturn(Optional.of(testPatient));
+        when(historiaClinicaRepository.existsByPacienteId(1L)).thenReturn(true);
+
+        // WHEN & THEN
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
+            patientService.deletePatient(1L);
+        });
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
         verify(patientRepository, never()).delete(any(Patient.class));
     }
 }

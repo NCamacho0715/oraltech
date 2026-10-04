@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface EvolucionClinicaRepository extends JpaRepository<EvolucionClinica, Long> {
     List<EvolucionClinica> findAllByHistoriaClinicaIdOrderByFechaAsc(UUID historiaClinicaId);
+    boolean existsByHistoriaClinicaId(UUID historiaClinicaId);
 }

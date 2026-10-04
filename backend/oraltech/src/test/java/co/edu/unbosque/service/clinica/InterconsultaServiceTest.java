@@ -101,4 +101,22 @@ class InterconsultaServiceTest {
         assertEquals(1, list.size());
         assertEquals("Remisión a Cirugía Maxilofacial", list.get(0).getDescripcion());
     }
+
+    @Test
+    @DisplayName("UT-INTER-04: Debería persistir la descripción (round-trip) al crear")
+    void shouldPersistDescripcionRoundTrip() {
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        doNothing().when(guard).requireActiva(historiaActiva);
+        when(repo.save(any(Interconsulta.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        InterconsultaResponse response = service.create(historiaId, request);
+
+        assertNotNull(response);
+        assertEquals(request.getDescripcion(), response.getDescripcion());
+
+        org.mockito.ArgumentCaptor<Interconsulta> captor =
+                org.mockito.ArgumentCaptor.forClass(Interconsulta.class);
+        verify(repo, times(1)).save(captor.capture());
+        assertEquals(request.getDescripcion(), captor.getValue().getDescripcion());
+    }
 }

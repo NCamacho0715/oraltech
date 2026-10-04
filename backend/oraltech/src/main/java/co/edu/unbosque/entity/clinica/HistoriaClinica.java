@@ -5,11 +5,13 @@ import co.edu.unbosque.entity.User;
 import co.edu.unbosque.entity.enums.EstadoHistoria;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "historia_clinica")
 @Data
 @Builder
@@ -48,11 +50,5 @@ public class HistoriaClinica {
         if (this.estado == null) {
             this.estado = EstadoHistoria.ACTIVA;
         }
-        this.audit.prePersist();
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        this.audit.preUpdate();
     }
 }

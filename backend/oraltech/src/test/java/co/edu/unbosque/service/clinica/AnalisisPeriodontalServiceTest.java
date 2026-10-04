@@ -35,6 +35,9 @@ class AnalisisPeriodontalServiceTest {
     @Mock
     private HistoriaClinicaGuard guard;
 
+    @Mock
+    private DesbloqueoService desbloqueoService;
+
     @InjectMocks
     private AnalisisPeriodontalService service;
 
@@ -82,17 +85,18 @@ class AnalisisPeriodontalServiceTest {
     }
 
     @Test
-    @DisplayName("UT-PERIO-02: Debería actualizar análisis periodontal preexistente")
-    void shouldUpdateExistingAnalisisPeriodontal() {
+    @DisplayName("UT-PERIO-02 (HU-2): Debería devolver 409 en el segundo guardado (sección inmutable)")
+    void shouldReturn409OnSecondSave() {
         when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
         doNothing().when(guard).requireActiva(historiaActiva);
         when(repo.findByHistoriaClinicaId(historiaId)).thenReturn(Optional.of(entity));
-        when(repo.save(any(AnalisisPeriodontal.class))).thenReturn(entity);
 
-        AnalisisPeriodontalResponse response = service.upsert(historiaId, request);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            service.upsert(historiaId, request);
+        });
 
-        assertNotNull(response);
-        verify(repo, times(1)).save(entity);
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(repo, never()).save(any());
     }
 
     @Test

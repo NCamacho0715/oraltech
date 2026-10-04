@@ -3,8 +3,10 @@ package co.edu.unbosque.service.clinica;
 import co.edu.unbosque.dto.clinica.EvolucionClinicaListResponse;
 import co.edu.unbosque.dto.clinica.EvolucionClinicaRequest;
 import co.edu.unbosque.dto.clinica.EvolucionClinicaResponse;
+import co.edu.unbosque.entity.Appointment;
 import co.edu.unbosque.entity.clinica.EvolucionClinica;
 import co.edu.unbosque.entity.clinica.HistoriaClinica;
+import co.edu.unbosque.repository.AppointmentRepository;
 import co.edu.unbosque.repository.clinica.EvolucionClinicaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -21,6 +25,7 @@ import java.util.stream.Collectors;
 public class EvolucionClinicaService {
 
     private final EvolucionClinicaRepository repo;
+    private final AppointmentRepository appointmentRepository;
     private final HistoriaClinicaService historiaService;
     private final HistoriaClinicaGuard guard;
 
@@ -31,6 +36,61 @@ public class EvolucionClinicaService {
     public EvolucionClinicaResponse create(UUID historiaId, EvolucionClinicaRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
+
+        if (req.getProcedimiento() == null || req.getProcedimiento().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El procedimiento es obligatorio");
+        }
+        if (req.getNumeroDiente() != null && !esDienteValido(req.getNumeroDiente())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Número de diente inválido: " + req.getNumeroDiente()
+                            + ". Rango válido: 1–32 (adulto) o 51–85 (temporal)");
+        }
+        if (req.getAbono() != null && req.getAbono().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El abono no puede ser negativo");
+        }
+        if (req.getSaldo() != null && req.getSaldo().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El saldo no puede ser negativo");
+        }
+        if (req.getCitaId() != null) {
+            if (req.getCitaId() <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "citaId inválido: " + req.getCitaId());
+            }
+            Appointment cita = appointmentRepository.findById(req.getCitaId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                            "Cita no encontrada: " + req.getCitaId()));
+            if (!cita.getPatient().getId().equals(historia.getPaciente().getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "La cita seleccionada pertenece a otro paciente");
+            }
+            if (!LocalDate.now().equals(cita.getAppointmentDate())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "La cita seleccionada no está programada para hoy");
+            }
+            // La atención quedó registrada: la cita pasa a completada
+            // (el calendario la muestra en verde).
+            cita.setStatus("COMPLETADA");
+            appointmentRepository.save(cita);
+        }
+
+        // HU-3: paciente recurrente (historia con evoluciones previas) exige
+        // cita del día o marca de urgencia; son excluyentes. En primera
+        // consulta la cita sigue siendo opcional (validada arriba si viene).
+        boolean esUrgencia = Boolean.TRUE.equals(req.getEsUrgencia());
+        if (repo.existsByHistoriaClinicaId(historiaId)) {
+            if (req.getCitaId() == null && !esUrgencia) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "En pacientes con atención previa la evolución requiere la cita del día o atención por urgencia");
+            }
+            if (req.getCitaId() != null && esUrgencia) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "citaId no aplica en urgencias: la atención por urgencia no tiene cita programada");
+            }
+        }
 
         // Validate signatures
         guard.validateSignatureSize(req.getFirmaPaciente(), "firmaPaciente");
@@ -39,6 +99,7 @@ public class EvolucionClinicaService {
         EvolucionClinica evo = EvolucionClinica.builder()
                 .historiaClinica(historia)
                 .citaId(req.getCitaId())
+                .esUrgencia(esUrgencia)
                 .numeroDiente(req.getNumeroDiente())
                 .procedimiento(req.getProcedimiento())
                 .observaciones(req.getObservaciones())
@@ -78,16 +139,29 @@ public class EvolucionClinicaService {
         return toDetailResponse(evo);
     }
 
+    /**
+     * Dentición válida: 1–32 (adulto/permanente) o 51–85 (temporal/decidua, notación FDI).
+     */
+    static boolean esDienteValido(short numeroDiente) {
+        return (numeroDiente >= 1 && numeroDiente <= 32)
+                || (numeroDiente >= 51 && numeroDiente <= 85);
+    }
+
     private EvolucionClinicaListResponse toListResponse(EvolucionClinica e) {
         return EvolucionClinicaListResponse.builder()
                 .id(e.getId())
                 .citaId(e.getCitaId())
+                .esUrgencia(e.getEsUrgencia())
                 .fecha(e.getFecha())
                 .numeroDiente(e.getNumeroDiente())
                 .procedimiento(e.getProcedimiento())
                 .observaciones(e.getObservaciones())
                 .abono(e.getAbono())
                 .saldo(e.getSaldo())
+                .createdAt(e.getAudit().getCreatedAt())
+                .createdBy(e.getAudit().getCreatedBy())
+                .updatedAt(e.getAudit().getUpdatedAt())
+                .updatedBy(e.getAudit().getUpdatedBy())
                 .build();
     }
 
@@ -95,6 +169,7 @@ public class EvolucionClinicaService {
         return EvolucionClinicaResponse.builder()
                 .id(e.getId())
                 .citaId(e.getCitaId())
+                .esUrgencia(e.getEsUrgencia())
                 .fecha(e.getFecha())
                 .numeroDiente(e.getNumeroDiente())
                 .procedimiento(e.getProcedimiento())
@@ -103,6 +178,10 @@ public class EvolucionClinicaService {
                 .saldo(e.getSaldo())
                 .firmaPaciente(e.getFirmaPaciente())
                 .firmaOdontologo(e.getFirmaOdontologo())
+                .createdAt(e.getAudit().getCreatedAt())
+                .createdBy(e.getAudit().getCreatedBy())
+                .updatedAt(e.getAudit().getUpdatedAt())
+                .updatedBy(e.getAudit().getUpdatedBy())
                 .build();
     }
 }

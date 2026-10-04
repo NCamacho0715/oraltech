@@ -18,6 +18,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
@@ -81,6 +83,15 @@ class HistoriaClinicaServiceTest {
         testRequest = new HistoriaClinicaRequest();
         testRequest.setPacienteId(1L);
         testRequest.setOdontologoId(10L);
+
+        // El servicio resuelve el odontólogo desde el usuario autenticado (JWT).
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("dr_andrea", null, java.util.List.of()));
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -89,7 +100,7 @@ class HistoriaClinicaServiceTest {
         // GIVEN
         when(historiaRepo.existsByPacienteId(1L)).thenReturn(false);
         when(patientRepo.findById(1L)).thenReturn(Optional.of(testPatient));
-        when(userRepo.findById(10L)).thenReturn(Optional.of(testOdontologo));
+        when(userRepo.findByUsername("dr_andrea")).thenReturn(Optional.of(testOdontologo));
         when(historiaRepo.save(any(HistoriaClinica.class))).thenReturn(testHistoria);
 
         // WHEN
@@ -101,6 +112,8 @@ class HistoriaClinicaServiceTest {
         assertEquals("ACTIVA", response.getEstado());
         assertEquals("Juliana Suárez", response.getPacienteNombre());
         assertEquals("Dra. Andrea Martínez", response.getOdontologoNombre());
+        // HU-5: la respuesta siempre incluye fecha de apertura.
+        assertNotNull(response.getFechaApertura());
         verify(historiaRepo, times(1)).save(any(HistoriaClinica.class));
     }
 
@@ -137,12 +150,12 @@ class HistoriaClinicaServiceTest {
     }
 
     @Test
-    @DisplayName("UT-HC-04: Debería lanzar 404 Not Found si el odontólogo asignado no existe")
+    @DisplayName("UT-HC-04: Debería lanzar 404 Not Found si el odontólogo autenticado no existe")
     void shouldThrowNotFoundWhenOdontologoDoesNotExist() {
         // GIVEN
         when(historiaRepo.existsByPacienteId(1L)).thenReturn(false);
         when(patientRepo.findById(1L)).thenReturn(Optional.of(testPatient));
-        when(userRepo.findById(10L)).thenReturn(Optional.empty());
+        when(userRepo.findByUsername("dr_andrea")).thenReturn(Optional.empty());
 
         // WHEN & THEN
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
@@ -195,6 +208,8 @@ class HistoriaClinicaServiceTest {
         // THEN
         assertNotNull(response);
         assertEquals(1L, response.getPacienteId());
+        // HU-5: el GET por paciente incluye fecha de apertura no nula.
+        assertNotNull(response.getFechaApertura());
     }
 
     @Test
@@ -238,5 +253,59 @@ class HistoriaClinicaServiceTest {
         });
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("UT-HC-11: Debería ignorar el odontologoId del body y usar el usuario autenticado")
+    void shouldIgnoreBodyOdontologoIdAndUseAuthenticatedUser() {
+        // GIVEN: el body trae otro odontólogo (el frontend antes enviaba 1 fijo)
+        testRequest.setOdontologoId(999L);
+        when(historiaRepo.existsByPacienteId(1L)).thenReturn(false);
+        when(patientRepo.findById(1L)).thenReturn(Optional.of(testPatient));
+        when(userRepo.findByUsername("dr_andrea")).thenReturn(Optional.of(testOdontologo));
+        when(historiaRepo.save(any(HistoriaClinica.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // WHEN
+        historiaService.create(testRequest);
+
+        // THEN: lo guardado pertenece al autenticado (id 10), no al del body (999)
+        org.mockito.ArgumentCaptor<HistoriaClinica> captor =
+                org.mockito.ArgumentCaptor.forClass(HistoriaClinica.class);
+        verify(historiaRepo).save(captor.capture());
+        assertEquals(10L, captor.getValue().getOdontologo().getId());
+    }
+
+    @Test
+    @DisplayName("UT-HC-12: Debería lanzar 401 si no hay usuario autenticado al crear")
+    void shouldThrowUnauthorizedWhenNoAuthentication() {
+        // GIVEN
+        SecurityContextHolder.clearContext();
+        when(historiaRepo.existsByPacienteId(1L)).thenReturn(false);
+        when(patientRepo.findById(1L)).thenReturn(Optional.of(testPatient));
+
+        // WHEN & THEN
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            historiaService.create(testRequest);
+        });
+
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+        verify(historiaRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("UT-HC-13 (HU-1): Otro odontólogo puede leer una historia que no aperturó")
+    void shouldAllowDifferentOdontologoToReadHistoria() {
+        // GIVEN: la historia la aperturó "dr_andrea", pero quien consulta es "dr_otro"
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("dr_otro", null, java.util.List.of()));
+        when(historiaRepo.findByPacienteId(1L)).thenReturn(Optional.of(testHistoria));
+
+        // WHEN
+        HistoriaClinicaResponse response = historiaService.getByPacienteId(1L);
+
+        // THEN: lectura compartida, sin filtro por odontólogo de apertura
+        assertNotNull(response);
+        assertEquals("Dra. Andrea Martínez", response.getOdontologoNombre());
+        verify(userRepo, never()).findByUsername(any());
     }
 }

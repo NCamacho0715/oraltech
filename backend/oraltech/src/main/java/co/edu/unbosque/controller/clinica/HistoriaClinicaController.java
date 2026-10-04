@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -30,5 +31,14 @@ public class HistoriaClinicaController {
     @GetMapping("/paciente/{pacienteId}")
     public ResponseEntity<HistoriaClinicaResponse> getByPacienteId(@PathVariable Long pacienteId) {
         return ResponseEntity.ok(service.getByPacienteId(pacienteId));
+    }
+
+    /**
+     * Sonda de existencia (siempre 200): evita el 404 en consola cuando el
+     * paciente aún no tiene historia clínica.
+     */
+    @GetMapping("/paciente/{pacienteId}/exists")
+    public ResponseEntity<Map<String, Boolean>> existsByPacienteId(@PathVariable Long pacienteId) {
+        return ResponseEntity.ok(Map.of("exists", service.existsByPacienteId(pacienteId)));
     }
 }

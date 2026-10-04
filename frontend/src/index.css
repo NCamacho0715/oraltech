@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 @import "tailwindcss";
 :root {
   --primary: #0077b6;
@@ -53,7 +51,7 @@ body {
 a {
   text-decoration: none;
   color: var(--primary);
-  transition: all 0.3s ease;
+  transition: color 0.3s ease;
 }
 
 a:hover {
@@ -65,7 +63,7 @@ button {
   border: none;
   outline: none;
   font-family: var(--font-family);
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
 }
 
 .auth-container {
@@ -85,7 +83,8 @@ button {
   box-shadow: var(--shadow);
   width: 100%;
   border: 1px solid var(--border-color);
-  backdrop-filter: blur(10px);
+  /* Sin backdrop-filter: el fondo ya es opaco y el blur forzaba
+     recomposición GPU en cada frame de animación/scroll. */
 }
 
 .auth-header {
@@ -125,7 +124,7 @@ button {
   font-size: 1rem;
   background-color: var(--surface);
   color: var(--text-main);
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
   outline: none;
 }
 

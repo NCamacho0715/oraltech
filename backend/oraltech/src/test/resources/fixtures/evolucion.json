@@ -1,0 +1,11 @@
+{
+  "_comment": "Este objeto debe mantenerse idéntico al payload que construye frontend/src/views/sections/EvolucionesSection.jsx. Si agregas un campo en la UI, agrégalo aquí en el mismo commit.",
+  "procedimiento": "Se realiza apertura cameral y conductometría en diente 16 bajo anestesia infiltrativa",
+  "observaciones": "Paciente tolera el procedimiento sin complicaciones",
+  "numeroDiente": 16,
+  "abono": 150000,
+  "saldo": 0,
+  "esUrgencia": false,
+  "firmaPaciente": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "firmaOdontologo": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+}

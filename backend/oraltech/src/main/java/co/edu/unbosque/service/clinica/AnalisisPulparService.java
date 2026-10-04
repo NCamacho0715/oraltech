@@ -4,11 +4,15 @@ import co.edu.unbosque.dto.clinica.AnalisisPulparRequest;
 import co.edu.unbosque.dto.clinica.AnalisisPulparResponse;
 import co.edu.unbosque.entity.clinica.AnalisisPulpar;
 import co.edu.unbosque.entity.clinica.HistoriaClinica;
+import co.edu.unbosque.entity.clinica.SeccionHistoria;
 import co.edu.unbosque.repository.clinica.AnalisisPulparRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -18,13 +22,22 @@ public class AnalisisPulparService {
     private final AnalisisPulparRepository repo;
     private final HistoriaClinicaService historiaService;
     private final HistoriaClinicaGuard guard;
+    private final DesbloqueoService desbloqueoService;
 
     @Transactional
     public AnalisisPulparResponse upsert(UUID historiaId, AnalisisPulparRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
-        AnalisisPulpar entity = repo.findByHistoriaClinicaId(historiaId)
+        boolean desbloqueado = desbloqueoService.consumirSiVigente(historiaId, SeccionHistoria.PULPAR);
+        Optional<AnalisisPulpar> existente = repo.findByHistoriaClinicaId(historiaId);
+        if (existente.isPresent() && !desbloqueado) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    SeccionHistoria.PULPAR.mensajeBloqueo());
+        }
+
+        AnalisisPulpar entity = existente
                 .orElseGet(() -> {
                     AnalisisPulpar a = new AnalisisPulpar();
                     a.setHistoriaClinica(historia);
@@ -63,6 +76,10 @@ public class AnalisisPulparService {
                 .exposicionPulpar(a.getExposicionPulpar())
                 .cambioColor(a.getCambioColor())
                 .observaciones(a.getObservaciones())
+                .createdAt(a.getAudit().getCreatedAt())
+                .createdBy(a.getAudit().getCreatedBy())
+                .updatedAt(a.getAudit().getUpdatedAt())
+                .updatedBy(a.getAudit().getUpdatedBy())
                 .build();
     }
 }

@@ -25,6 +25,7 @@ public class InterconsultaService {
     public InterconsultaResponse create(UUID historiaId, InterconsultaRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
 
         Interconsulta i = Interconsulta.builder()
                 .historiaClinica(historia)
@@ -46,6 +47,10 @@ public class InterconsultaService {
         return InterconsultaResponse.builder()
                 .id(i.getId())
                 .descripcion(i.getDescripcion())
+                .createdAt(i.getAudit().getCreatedAt())
+                .createdBy(i.getAudit().getCreatedBy())
+                .updatedAt(i.getAudit().getUpdatedAt())
+                .updatedBy(i.getAudit().getUpdatedBy())
                 .build();
     }
 }

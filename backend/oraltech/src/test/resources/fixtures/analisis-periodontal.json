@@ -1,0 +1,15 @@
+{
+  "_comment": "Este objeto debe mantenerse idéntico al payload que construye frontend/src/views/sections/AnalisisPeriodontalForm.jsx. Si agregas un campo en la UI, agrégalo aquí en el mismo commit.",
+  "bolsaPeriodontal": true,
+  "pseudoBolsa": false,
+  "movilidadDental": true,
+  "perdidaOsea": true,
+  "retraccionGingival": true,
+  "calculosSupra": true,
+  "calculosSub": true,
+  "reabsorcionRadicular": false,
+  "sangrado": true,
+  "exudadoSupuracion": false,
+  "inflamacion": true,
+  "cambioColor": true
+}

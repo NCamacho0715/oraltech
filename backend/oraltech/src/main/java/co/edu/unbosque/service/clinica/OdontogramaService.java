@@ -5,6 +5,7 @@ import co.edu.unbosque.dto.clinica.OdontogramaRegistroResponse;
 import co.edu.unbosque.entity.clinica.EvolucionClinica;
 import co.edu.unbosque.entity.clinica.HistoriaClinica;
 import co.edu.unbosque.entity.clinica.OdontogramaRegistro;
+import co.edu.unbosque.entity.clinica.SeccionHistoria;
 import co.edu.unbosque.entity.enums.EstadoEvento;
 import co.edu.unbosque.entity.enums.TipoEvento;
 import co.edu.unbosque.repository.clinica.EvolucionClinicaRepository;
@@ -27,11 +28,24 @@ public class OdontogramaService {
     private final EvolucionClinicaRepository evolucionRepo;
     private final HistoriaClinicaService historiaService;
     private final HistoriaClinicaGuard guard;
+    private final DesbloqueoService desbloqueoService;
 
     @Transactional
     public OdontogramaRegistroResponse create(UUID historiaId, OdontogramaRegistroRequest req) {
         HistoriaClinica historia = historiaService.findOrThrow(historiaId);
         guard.requireActiva(historia);
+        guard.registrarActividad(historia);
+
+        // HU-2: gracia de llenado inicial — mientras la historia no tenga
+        // evoluciones (sin atención en curso) los hallazgos son libres, aunque
+        // ya existan. Con evoluciones, cada hallazgo adicional consume un
+        // desbloqueo ADMIN de un solo uso.
+        if (repo.existsByHistoriaClinicaId(historiaId)
+                && evolucionRepo.existsByHistoriaClinicaId(historiaId)
+                && !desbloqueoService.consumirSiVigente(historiaId, SeccionHistoria.ODONTOGRAMA)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    SeccionHistoria.ODONTOGRAMA.mensajeBloqueo());
+        }
 
         EvolucionClinica evolucion = null;
         if (req.getEvolucionId() != null) {
@@ -76,21 +90,6 @@ public class OdontogramaService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional
-    public void delete(UUID historiaId, Long registroId) {
-        HistoriaClinica historia = historiaService.findOrThrow(historiaId);
-        guard.requireActiva(historia);
-
-        OdontogramaRegistro registro = repo.findById(registroId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro no encontrado"));
-
-        if (!registro.getHistoriaClinica().getId().equals(historiaId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El registro no pertenece a esta historia");
-        }
-
-        repo.delete(registro);
-    }
-
     private OdontogramaRegistroResponse toResponse(OdontogramaRegistro r) {
         return OdontogramaRegistroResponse.builder()
                 .id(r.getId())
@@ -101,6 +100,10 @@ public class OdontogramaService {
                 .estado(r.getEstado().name())
                 .fecha(r.getFecha())
                 .observacion(r.getObservacion())
+                .createdAt(r.getAudit().getCreatedAt())
+                .createdBy(r.getAudit().getCreatedBy())
+                .updatedAt(r.getAudit().getUpdatedAt())
+                .updatedBy(r.getAudit().getUpdatedBy())
                 .build();
     }
 }

@@ -1,14 +1,17 @@
 package co.edu.unbosque.entity.clinica;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import co.edu.unbosque.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "plan_tratamiento")
 @Data
 @Builder
@@ -31,7 +34,11 @@ public class PlanTratamiento {
     @Column(nullable = false)
     private LocalDate fecha;
 
+    @Column(columnDefinition = "TEXT")
+    private String descripcion;
+
     @OneToMany(mappedBy = "plan", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, orphanRemoval = true)
+    @JsonManagedReference
     @Builder.Default
     private List<PlanItem> items = new ArrayList<>();
 
@@ -42,9 +49,5 @@ public class PlanTratamiento {
     @PrePersist
     public void prePersist() {
         if (this.fecha == null) this.fecha = LocalDate.now();
-        this.audit.prePersist();
     }
-
-    @PreUpdate
-    public void preUpdate() { this.audit.preUpdate(); }
 }

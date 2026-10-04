@@ -48,5 +48,16 @@ This document provides a chronological overview of the development milestones an
     *   **UI Polish**: Added custom modals for record deletion and elegant success indicators for data saving.
 *   **Repository Maintenance**: Successfully pushed the complete modernization to the `feature/test` branch.
 
+## 🟣 Phase 5: Clinical Records Traceability (Auditing)
+*Date: 2026-09-26*
+
+*   **JPA Auditing Engine**:
+    *   Added `JpaAuditingConfig` with `@EnableJpaAuditing(auditorAwareRef = "auditorAware")` and an `AuditorAware<String>` that resolves the authenticated username (`"sistema"` when there is no principal).
+    *   `AuditFields` is now the single audit source (Spring `@CreatedDate`/`@CreatedBy`/`@LastModifiedDate`/`@LastModifiedBy`); the manual `@PrePersist`/`@PreUpdate` callbacks were removed from all 14 clinical entities, which now register `AuditingEntityListener`.
+*   **Audit API**: the 10 clinical section response DTOs (plus historia/interconsulta/pronóstico/prótesis) expose `createdAt`, `createdBy`, `updatedAt` and `updatedBy`; `createdBy` is immutable on upsert.
+*   **UI**: discreet "Última modificación: fecha · profesional" line under the "Historia Clínica" title.
+*   **Testing**: new `AuditoriaTrazabilidadTest` (full-stack MockMvc: first save as `dr_andrea`, second `PUT` as `dr_carlos`).
+*   **Documentation**: `docs/trazabilidad_registros_clinicos.md` — last-author log only (full changelog is a future story) and `created_by = NULL` for rows created before the deploy.
+
 ---
-*Last updated: 2026-04-05*
+*Last updated: 2026-09-26*

@@ -4,6 +4,7 @@ import co.edu.unbosque.entity.Patient;
 import co.edu.unbosque.service.PatientService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -49,12 +50,9 @@ public class PatientController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Void> deletePatient(@PathVariable Long id) {
-        try {
-            patientService.deletePatient(id);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+        patientService.deletePatient(id);
+        return ResponseEntity.noContent().build();
     }
 }

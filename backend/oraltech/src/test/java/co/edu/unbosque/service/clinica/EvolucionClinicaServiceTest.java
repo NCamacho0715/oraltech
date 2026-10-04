@@ -6,6 +6,7 @@ import co.edu.unbosque.dto.clinica.EvolucionClinicaResponse;
 import co.edu.unbosque.entity.clinica.EvolucionClinica;
 import co.edu.unbosque.entity.clinica.HistoriaClinica;
 import co.edu.unbosque.entity.enums.EstadoHistoria;
+import co.edu.unbosque.repository.AppointmentRepository;
 import co.edu.unbosque.repository.clinica.EvolucionClinicaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +33,9 @@ class EvolucionClinicaServiceTest {
 
     @Mock
     private EvolucionClinicaRepository repo;
+
+    @Mock
+    private AppointmentRepository appointmentRepository;
 
     @Mock
     private HistoriaClinicaService historiaService;
@@ -165,5 +169,292 @@ class EvolucionClinicaServiceTest {
         });
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("UT-EVO-07: Debería devolver 400 si el procedimiento es nulo o vacío")
+    void shouldRejectWhenProcedimientoBlank() {
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+
+        EvolucionClinicaRequest sinProcedimiento = new EvolucionClinicaRequest();
+        sinProcedimiento.setProcedimiento(null);
+
+        ResponseStatusException exNull = assertThrows(ResponseStatusException.class, () -> {
+            service.create(historiaId, sinProcedimiento);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, exNull.getStatusCode());
+
+        EvolucionClinicaRequest vacio = new EvolucionClinicaRequest();
+        vacio.setProcedimiento("   ");
+
+        ResponseStatusException exBlank = assertThrows(ResponseStatusException.class, () -> {
+            service.create(historiaId, vacio);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, exBlank.getStatusCode());
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("UT-EVO-08: Debería devolver 400 si numeroDiente está fuera de rango")
+    void shouldRejectWhenNumeroDienteOutOfRange() {
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+
+        EvolucionClinicaRequest fueraRango = new EvolucionClinicaRequest();
+        fueraRango.setProcedimiento("Obturación con resina");
+        fueraRango.setNumeroDiente((short) 40);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            service.create(historiaId, fueraRango);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("UT-EVO-09: Debería devolver 400 si el abono es negativo")
+    void shouldRejectWhenAbonoNegative() {
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+
+        EvolucionClinicaRequest abonoNegativo = new EvolucionClinicaRequest();
+        abonoNegativo.setProcedimiento("Obturación con resina");
+        abonoNegativo.setAbono(new BigDecimal("-5000"));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            service.create(historiaId, abonoNegativo);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("UT-EVO-10: Debería devolver 400 si el saldo es negativo")
+    void shouldRejectWhenSaldoNegative() {
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+
+        EvolucionClinicaRequest saldoNegativo = new EvolucionClinicaRequest();
+        saldoNegativo.setProcedimiento("Obturación con resina");
+        saldoNegativo.setSaldo(new BigDecimal("-1"));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            service.create(historiaId, saldoNegativo);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("UT-EVO-11: Debería devolver 404 si citaId no existe")
+    void shouldRejectWhenCitaIdNotFound() {
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        when(appointmentRepository.findById(999L)).thenReturn(Optional.empty());
+
+        EvolucionClinicaRequest conCita = new EvolucionClinicaRequest();
+        conCita.setProcedimiento("Obturación con resina");
+        conCita.setCitaId(999L);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            service.create(historiaId, conCita);
+        });
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        verify(repo, never()).save(any());
+    }
+
+    // ── HU-3: cita obligatoria / urgencia ───────────────────────────────
+
+    private co.edu.unbosque.entity.Patient pacienteDeHistoria() {
+        co.edu.unbosque.entity.Patient p = co.edu.unbosque.entity.Patient.builder()
+                .id(1L).names("Carlos").firstSurname("Gómez").build();
+        historiaActiva.setPaciente(p);
+        return p;
+    }
+
+    private co.edu.unbosque.entity.Appointment citaPara(
+            co.edu.unbosque.entity.Patient paciente, java.time.LocalDate fecha) {
+        return co.edu.unbosque.entity.Appointment.builder()
+                .id(7L)
+                .patient(paciente)
+                .title("Control")
+                .appointmentDate(fecha)
+                .startTime(java.time.LocalTime.of(9, 0))
+                .endTime(java.time.LocalTime.of(9, 30))
+                .build();
+    }
+
+    @Test
+    @DisplayName("UT-EVO-13 (HU-3): Recurrente sin cita ni urgencia → 400")
+    void shouldRejectRecurrenteWithoutCitaNorUrgencia() {
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        when(repo.existsByHistoriaClinicaId(historiaId)).thenReturn(true);
+
+        EvolucionClinicaRequest sinCita = new EvolucionClinicaRequest();
+        sinCita.setProcedimiento("Control");
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            service.create(historiaId, sinCita);
+        });
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("UT-EVO-14 (HU-3): Cita + urgencia a la vez → 400")
+    void shouldRejectCitaWithUrgencia() {
+        co.edu.unbosque.entity.Patient paciente = pacienteDeHistoria();
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        when(appointmentRepository.findById(7L)).thenReturn(Optional.of(
+                citaPara(paciente, java.time.LocalDate.now())));
+        when(repo.existsByHistoriaClinicaId(historiaId)).thenReturn(true);
+
+        EvolucionClinicaRequest ambas = new EvolucionClinicaRequest();
+        ambas.setProcedimiento("Control");
+        ambas.setCitaId(7L);
+        ambas.setEsUrgencia(true);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            service.create(historiaId, ambas);
+        });
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("no aplica en urgencias"));
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("UT-EVO-15 (HU-3): Cita de otro paciente → 400")
+    void shouldRejectCitaFromOtherPatient() {
+        pacienteDeHistoria();
+        co.edu.unbosque.entity.Patient otro = co.edu.unbosque.entity.Patient.builder()
+                .id(2L).names("Ana").firstSurname("López").build();
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        when(appointmentRepository.findById(7L)).thenReturn(Optional.of(
+                citaPara(otro, java.time.LocalDate.now())));
+
+        EvolucionClinicaRequest conCita = new EvolucionClinicaRequest();
+        conCita.setProcedimiento("Control");
+        conCita.setCitaId(7L);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            service.create(historiaId, conCita);
+        });
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("otro paciente"));
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("UT-EVO-16 (HU-3): Cita de otro día → 400")
+    void shouldRejectCitaNotToday() {
+        co.edu.unbosque.entity.Patient paciente = pacienteDeHistoria();
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        when(appointmentRepository.findById(7L)).thenReturn(Optional.of(
+                citaPara(paciente, java.time.LocalDate.now().minusDays(1))));
+
+        EvolucionClinicaRequest conCita = new EvolucionClinicaRequest();
+        conCita.setProcedimiento("Control");
+        conCita.setCitaId(7L);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            service.create(historiaId, conCita);
+        });
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("para hoy"));
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("UT-EVO-17 (HU-3): Urgencia sin cita en recurrente → 201")
+    void shouldAllowUrgenciaWithoutCita() {
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        doNothing().when(guard).requireActiva(historiaActiva);
+        doNothing().when(guard).validateSignatureSize(any(), any());
+        when(repo.existsByHistoriaClinicaId(historiaId)).thenReturn(true);
+        when(repo.save(any(EvolucionClinica.class))).thenReturn(entity);
+
+        EvolucionClinicaRequest urgencia = new EvolucionClinicaRequest();
+        urgencia.setProcedimiento("Urgencia: dolor agudo");
+        urgencia.setEsUrgencia(true);
+
+        EvolucionClinicaResponse response = service.create(historiaId, urgencia);
+
+        assertNotNull(response);
+        verify(repo, times(1)).save(any(EvolucionClinica.class));
+    }
+
+    @Test
+    @DisplayName("UT-EVO-18 (HU-3): Primera consulta con cita válida de hoy → 201")
+    void shouldAllowFirstConsultaWithValidCita() {
+        co.edu.unbosque.entity.Patient paciente = pacienteDeHistoria();
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        doNothing().when(guard).requireActiva(historiaActiva);
+        doNothing().when(guard).validateSignatureSize(any(), any());
+        when(appointmentRepository.findById(7L)).thenReturn(Optional.of(
+                citaPara(paciente, java.time.LocalDate.now())));
+        when(repo.existsByHistoriaClinicaId(historiaId)).thenReturn(false);
+        when(repo.save(any(EvolucionClinica.class))).thenReturn(entity);
+
+        EvolucionClinicaRequest conCita = new EvolucionClinicaRequest();
+        conCita.setProcedimiento("Primera valoración");
+        conCita.setCitaId(7L);
+
+        EvolucionClinicaResponse response = service.create(historiaId, conCita);
+
+        assertNotNull(response);
+        verify(repo, times(1)).save(any(EvolucionClinica.class));
+    }
+
+    @Test
+    @DisplayName("UT-EVO-19: Registrar evolución con cita la marca COMPLETADA")
+    void shouldMarkCitaCompletadaOnCreate() {
+        co.edu.unbosque.entity.Patient paciente = pacienteDeHistoria();
+        co.edu.unbosque.entity.Appointment cita =
+                citaPara(paciente, java.time.LocalDate.now());
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        doNothing().when(guard).requireActiva(historiaActiva);
+        doNothing().when(guard).validateSignatureSize(any(), any());
+        when(appointmentRepository.findById(7L)).thenReturn(Optional.of(cita));
+        when(repo.existsByHistoriaClinicaId(historiaId)).thenReturn(false);
+        when(repo.save(any(EvolucionClinica.class))).thenReturn(entity);
+
+        EvolucionClinicaRequest conCita = new EvolucionClinicaRequest();
+        conCita.setProcedimiento("Control con cita");
+        conCita.setCitaId(7L);
+
+        service.create(historiaId, conCita);
+
+        assertEquals("COMPLETADA", cita.getStatus());
+        verify(appointmentRepository, times(1)).save(cita);
+    }
+
+    @Test
+    @DisplayName("UT-EVO-12 (HU-1): Dos odontólogos distintos leen y registran evolución sobre la misma historia")
+    void shouldAllowTwoDifferentOdontologosToReadAndWriteEvoluciones() {
+        // GIVEN: historia aperturada por la Dra. Andrea; escriben otros dos profesionales.
+        // El servicio nunca consulta quién aperturó: no hay filtro por odontólogo.
+        historiaActiva.setOdontologo(co.edu.unbosque.entity.User.builder()
+                .id(10L)
+                .username("dr_andrea")
+                .name("Dra. Andrea Martínez")
+                .role(co.edu.unbosque.entity.User.Role.DENTIST)
+                .build());
+        when(historiaService.findOrThrow(historiaId)).thenReturn(historiaActiva);
+        doNothing().when(guard).requireActiva(historiaActiva);
+        doNothing().when(guard).validateSignatureSize(any(), any());
+        when(repo.save(any(EvolucionClinica.class))).thenReturn(entity);
+        when(repo.findAllByHistoriaClinicaIdOrderByFechaAsc(historiaId))
+                .thenReturn(List.of(entity, entity));
+
+        // WHEN: ambos profesionales escriben y luego leen
+        EvolucionClinicaResponse primero = service.create(historiaId, request);
+        EvolucionClinicaResponse segundo = service.create(historiaId, request);
+        List<EvolucionClinicaListResponse> lectura = service.list(historiaId);
+
+        // THEN: acceso compartido, sin restricción por odontólogo de apertura
+        assertNotNull(primero);
+        assertNotNull(segundo);
+        assertEquals(2, lectura.size());
+        verify(repo, times(2)).save(any(EvolucionClinica.class));
     }
 }

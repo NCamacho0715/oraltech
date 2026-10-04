@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface OdontogramaRegistroRepository extends JpaRepository<OdontogramaRegistro, Long> {
     List<OdontogramaRegistro> findAllByHistoriaClinicaId(UUID historiaClinicaId);
+    boolean existsByHistoriaClinicaId(UUID historiaClinicaId);
 }

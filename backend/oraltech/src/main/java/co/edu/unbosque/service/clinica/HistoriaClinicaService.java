@@ -11,6 +11,9 @@ import co.edu.unbosque.repository.UserRepository;
 import co.edu.unbosque.repository.clinica.HistoriaClinicaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -35,8 +38,9 @@ public class HistoriaClinicaService {
         Patient patient = patientRepo.findById(request.getPacienteId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Paciente no encontrado"));
 
-        User odontologo = userRepo.findById(request.getOdontologoId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Odontólogo no encontrado"));
+        // El odontólogo de apertura es siempre el usuario autenticado, nunca lo
+        // que venga en el body (el frontend antes enviaba odontologoId: 1 fijo).
+        User odontologo = resolveAuthenticatedOdontologo();
 
         HistoriaClinica historia = HistoriaClinica.builder()
                 .paciente(patient)
@@ -69,6 +73,28 @@ public class HistoriaClinicaService {
                         "Historia clínica no encontrada"));
     }
 
+    /**
+     * Sonda ligera (siempre 200) para saber si el paciente ya tiene historia,
+     * sin provocar un 404 en consola cuando aún no existe.
+     */
+    @Transactional(readOnly = true)
+    public boolean existsByPacienteId(Long pacienteId) {
+        return historiaRepo.existsByPacienteId(pacienteId);
+    }
+
+    private User resolveAuthenticatedOdontologo() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = (auth != null && auth.isAuthenticated()
+                && !(auth instanceof AnonymousAuthenticationToken)) ? auth.getName() : null;
+        if (username == null || username.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                    "No hay usuario autenticado para aperturar la historia");
+        }
+        return userRepo.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Odontólogo no encontrado: " + username));
+    }
+
     private HistoriaClinicaResponse toResponse(HistoriaClinica h) {
         return HistoriaClinicaResponse.builder()
                 .id(h.getId())
@@ -78,6 +104,10 @@ public class HistoriaClinicaService {
                 .odontologoNombre(h.getOdontologo().getName())
                 .fechaApertura(h.getFechaApertura())
                 .estado(h.getEstado().name())
+                .createdAt(h.getAudit().getCreatedAt())
+                .createdBy(h.getAudit().getCreatedBy())
+                .updatedAt(h.getAudit().getUpdatedAt())
+                .updatedBy(h.getAudit().getUpdatedBy())
                 .build();
     }
 }
