@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllPatients, deletePatient } from '../services/patientService';
-import { UserPlus, Search, Edit2, Trash2, Eye, LayoutGrid, List as ListIcon, Stethoscope, Users, ArrowLeft } from 'lucide-react';
+import { getPatientsPaginated, deletePatient } from '../services/patientService';
+import { UserPlus, Search, Edit2, Trash2, Eye, Users, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const PatientList = () => {
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [page, setPage] = useState(0);
+    const [pageSize] = useState(10);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalElements, setTotalElements] = useState(0);
+
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [confirmWord, setConfirmWord] = useState('');
     const [deleting, setDeleting] = useState(false);
@@ -17,37 +22,48 @@ const PatientList = () => {
     const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
     const isAdmin = currentUser?.role === 'ADMIN';
 
-    const reloadPatients = async () => {
+    const fetchPatients = useCallback(async (targetPage, query) => {
+        setLoading(true);
         try {
-            const data = await getAllPatients();
-            setPatients(data);
+            const data = await getPatientsPaginated(targetPage, pageSize, query);
+            if (data && data.content) {
+                setPatients(data.content);
+                setTotalPages(data.totalPages || 0);
+                setTotalElements(data.totalElements || 0);
+            } else if (Array.isArray(data)) {
+                setPatients(data);
+                setTotalPages(1);
+                setTotalElements(data.length);
+            }
         } catch (error) {
             console.error('Error loading patients:', error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [pageSize]);
 
     useEffect(() => {
         let ignore = false;
-        const fetchPatients = async () => {
-            try {
-                const data = await getAllPatients();
-                if (!ignore) {
-                    setPatients(data);
-                }
-            } catch (error) {
-                if (!ignore) console.error('Error loading patients:', error);
-            } finally {
-                if (!ignore) setLoading(false);
+        const handler = setTimeout(() => {
+            if (!ignore) {
+                fetchPatients(page, searchTerm);
             }
-        };
+        }, 250);
 
-        fetchPatients();
         return () => {
             ignore = true;
+            clearTimeout(handler);
         };
-    }, []);
+    }, [page, searchTerm, fetchPatients]);
+
+    const reloadPatients = () => {
+        fetchPatients(page, searchTerm);
+    };
+
+    const handleSearchChange = (e) => {
+        setSearchTerm(e.target.value);
+        setPage(0);
+    };
 
     const openDeleteConfirm = (patient) => {
         setDeleteTarget(patient);
@@ -82,12 +98,6 @@ const PatientList = () => {
         }
     };
 
-    const filteredPatients = patients.filter(p => 
-        (p.names?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (p.firstSurname?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (p.idNumber?.includes(searchTerm))
-    );
-
     return (
         <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -121,7 +131,7 @@ const PatientList = () => {
                     placeholder="Buscar por nombre, apellido o identificación..." 
                     aria-label="Buscar pacientes por nombre, apellido o identificación"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={handleSearchChange}
                     style={{ 
                         flex: 1, 
                         border: 'none', 
@@ -134,14 +144,14 @@ const PatientList = () => {
 
             {loading ? (
                 <div style={{ textAlign: 'center', padding: '3rem' }}>Cargando pacientes...</div>
-            ) : filteredPatients.length === 0 ? (
+            ) : patients.length === 0 ? (
                 <div className="auth-card" style={{ textAlign: 'center', padding: '4rem' }}>
                     <Users size={48} color="var(--secondary)" style={{ marginBottom: '1rem' }} />
                     <p style={{ color: 'var(--text-secondary)' }}>No se encontraron pacientes.</p>
                 </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                    {filteredPatients.map(patient => (
+                    {patients.map(patient => (
                         <div 
                             key={patient.id} 
                             className="auth-card" 
@@ -177,13 +187,13 @@ const PatientList = () => {
                                     >
                                         <Edit2 size={18} />
                                     </button>
-                                    {isAdmin && (
+                                    {isAdmin && !patient.hasHistoriaClinica && (
                                     <button
                                         type="button"
                                         aria-label="Eliminar paciente"
                                         onClick={(e) => { e.stopPropagation(); openDeleteConfirm(patient); }}
                                         style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }}
-                                        title="Eliminar (solo administradores)"
+                                        title="Eliminar paciente (sin historia clínica)"
                                     >
                                         <Trash2 size={18} />
                                     </button>
@@ -219,6 +229,77 @@ const PatientList = () => {
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {!loading && totalElements > 0 && (
+                <div
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginTop: '2rem',
+                        padding: '1rem 1.5rem',
+                        background: 'var(--surface)',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border-color)',
+                        flexWrap: 'wrap',
+                        gap: '1rem',
+                    }}
+                >
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                        Mostrando <strong style={{ color: 'var(--text-main)' }}>{page * pageSize + 1}</strong> a{' '}
+                        <strong style={{ color: 'var(--text-main)' }}>{Math.min((page + 1) * pageSize, totalElements)}</strong> de{' '}
+                        <strong style={{ color: 'var(--text-main)' }}>{totalElements}</strong> pacientes
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <button
+                            onClick={() => setPage((p) => Math.max(0, p - 1))}
+                            disabled={page === 0}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '0.5rem 0.9rem',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border-color)',
+                                background: page === 0 ? 'transparent' : 'var(--secondary-soft)',
+                                color: page === 0 ? 'var(--text-secondary)' : 'var(--primary)',
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                                cursor: page === 0 ? 'not-allowed' : 'pointer',
+                                opacity: page === 0 ? 0.5 : 1,
+                            }}
+                        >
+                            <ChevronLeft size={16} /> Anterior
+                        </button>
+
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-main)', padding: '0 0.5rem', fontWeight: 600 }}>
+                            Página {page + 1} de {Math.max(1, totalPages)}
+                        </span>
+
+                        <button
+                            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                            disabled={page >= totalPages - 1}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '0.5rem 0.9rem',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border-color)',
+                                background: page >= totalPages - 1 ? 'transparent' : 'var(--secondary-soft)',
+                                color: page >= totalPages - 1 ? 'var(--text-secondary)' : 'var(--primary)',
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                                cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer',
+                                opacity: page >= totalPages - 1 ? 0.5 : 1,
+                            }}
+                        >
+                            Siguiente <ChevronRight size={16} />
+                        </button>
+                    </div>
                 </div>
             )}
 

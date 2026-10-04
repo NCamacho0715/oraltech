@@ -72,8 +72,8 @@ const ProtesisCard = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
             <Lock size={16} /> Registro bloqueado
-            {protesisMeta.createdAt && ` · ${formatFechaCorta(protesisMeta.createdAt)}`}
-            {protesisMeta.createdBy && ` · ${protesisMeta.createdBy}`}
+            {(protesisMeta.updatedAt || protesisMeta.createdAt) && ` · ${formatFechaCorta(protesisMeta.updatedAt || protesisMeta.createdAt)}`}
+            {(protesisMeta.updatedBy || protesisMeta.createdBy) && ` · ${protesisMeta.updatedBy || protesisMeta.createdBy}`}
           </span>
           {showUnlockBtn && (
             <button
@@ -224,7 +224,12 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
           if (ignore) return;
           if (resProt.data) {
             setProtesis(resProt.data);
-            setProtesisMeta({ createdAt: resProt.data.createdAt || null, createdBy: resProt.data.createdBy || '' });
+            setProtesisMeta({
+              createdAt: resProt.data.createdAt || null,
+              createdBy: resProt.data.createdBy || '',
+              updatedAt: resProt.data.updatedAt || null,
+              updatedBy: resProt.data.updatedBy || '',
+            });
             marcarRegistrado(resProt.data);
           }
         } catch (errProt) {
@@ -278,7 +283,12 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
       const res = await clinicaService.upsertProtesis(historiaId, protesis);
       if (res.data) {
         setProtesis(res.data);
-        setProtesisMeta({ createdAt: res.data.createdAt || null, createdBy: res.data.createdBy || '' });
+        setProtesisMeta({
+          createdAt: res.data.createdAt || null,
+          createdBy: res.data.createdBy || '',
+          updatedAt: res.data.updatedAt || null,
+          updatedBy: res.data.updatedBy || '',
+        });
       }
       bloqueo.marcarGuardado();
       setShowSuccess(true);

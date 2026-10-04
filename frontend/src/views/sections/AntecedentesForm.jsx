@@ -115,7 +115,7 @@ const AntecedentesBanners = ({
       >
         <strong>Registro bloqueado.</strong>
         {fechaBloqueo ? ` Registrado el ${fechaBloqueo}` : ""}
-        {meta.createdBy ? ` por ${meta.createdBy}` : ""} Solo un ADMIN puede
+        {(meta.updatedBy || meta.createdBy) ? ` por ${meta.updatedBy || meta.createdBy}` : ""} Solo un ADMIN puede
         desbloquearlo para corregir un error de digitación.
       </div>
     )}
@@ -142,6 +142,8 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
   const [hasCafe, setHasCafe] = useState(false);
   const [hasMed, setHasMed] = useState(false);
   const [hasAlergiaMed, setHasAlergiaMed] = useState(false);
+  const [hasFamOtros, setHasFamOtros] = useState(false);
+  const [hasAlergias, setHasAlergias] = useState(false);
 
   const [patientSex, setPatientSex] = useState(null);
   const [patientBlocked, setPatientBlocked] = useState(false);
@@ -153,6 +155,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
 
   // HU-2: bloqueo de sección inmutable + desbloqueo excepcional ADMIN.
   const bloqueo = useBloqueoSeccion("antecedentes");
+  const { marcarRegistrado } = bloqueo;
   const [meta, setMeta] = useState({ createdAt: "", createdBy: "" });
 
   // Fail-safe: si no se pudo cargar el paciente, el formulario queda en solo lectura.
@@ -176,20 +179,34 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
             }
           });
 
-          setData((prev) => ({ ...prev, ...cleanData }));
-
           if (res.data.cafe) setHasCafe(true);
           if (res.data.medicamentos) setHasMed(true);
           if (res.data.alergiaMedicamentos) {
             setHasAlergiaMed(true);
           }
+          if (res.data.famOtros) {
+            setHasFamOtros(true);
+            if (res.data.famOtros === "true" || res.data.famOtros === true) {
+              cleanData.famOtros = "";
+            }
+          }
+          if (res.data.alergias) {
+            setHasAlergias(true);
+            if (res.data.alergias === "true" || res.data.alergias === true) {
+              cleanData.alergias = "";
+            }
+          }
+
+          setData((prev) => ({ ...prev, ...cleanData }));
 
           // HU-2: si ya existe registro, la sección queda bloqueada.
           if (res.data.id) {
-            bloqueo.marcarRegistrado(res.data);
+            marcarRegistrado(res.data);
             setMeta({
               createdAt: res.data.createdAt || "",
               createdBy: res.data.createdBy || "",
+              updatedAt: res.data.updatedAt || "",
+              updatedBy: res.data.updatedBy || "",
             });
           }
         }
@@ -228,7 +245,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
     return () => {
       ignore = true;
     };
-  }, [historiaId, patientId, bloqueo]);
+  }, [historiaId, patientId, marcarRegistrado]);
 
   const handleChange = (field, value) => {
     setData((prev) => ({ ...prev, [field]: value }));
@@ -242,6 +259,8 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
     if (!hasCafe) finalData.cafe = "";
     if (!hasMed) finalData.medicamentos = "";
     if (!hasAlergiaMed) finalData.alergiaMedicamentos = "";
+    if (!hasFamOtros) finalData.famOtros = "";
+    if (!hasAlergias) finalData.alergias = "";
     try {
       const res = await clinicaService.upsertAntecedentes(
         historiaId,
@@ -251,6 +270,8 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
         setMeta({
           createdAt: res.data.createdAt || "",
           createdBy: res.data.createdBy || "",
+          updatedAt: res.data.updatedAt || "",
+          updatedBy: res.data.updatedBy || "",
         });
       }
       // HU-2: tras guardar, la sección queda bloqueada.
@@ -279,7 +300,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
   };
 
   // HU-2: fecha del registro bloqueado ('' si falta o es inválida, nunca 'Invalid Date').
-  const fechaBloqueo = formatFechaCorta(meta.createdAt);
+  const fechaBloqueo = formatFechaCorta(meta.updatedAt || meta.createdAt);
 
   return (
     <form onSubmit={handleSubmit} style={{ animation: "fadeIn 0.4s ease-out" }}>
@@ -316,6 +337,10 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
           handleChange={handleChange}
           locked={locked}
           commonInputStyle={commonInputStyle}
+          hasFamOtros={hasFamOtros}
+          setHasFamOtros={setHasFamOtros}
+          hasAlergias={hasAlergias}
+          setHasAlergias={setHasAlergias}
         />
         <ColumnaDerechaAntecedentes
           data={data}

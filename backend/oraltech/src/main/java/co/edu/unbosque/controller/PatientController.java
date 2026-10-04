@@ -17,7 +17,15 @@ public class PatientController {
     private final PatientService patientService;
 
     @GetMapping
-    public ResponseEntity<List<Patient>> getAllPatients() {
+    public ResponseEntity<?> getAllPatients(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String search) {
+        if (page != null) {
+            int pageSize = (size != null && size > 0) ? size : 10;
+            return ResponseEntity.ok(patientService.getPatientsPaginated(
+                    org.springframework.data.domain.PageRequest.of(page, pageSize), search));
+        }
         return ResponseEntity.ok(patientService.getAllPatients());
     }
 

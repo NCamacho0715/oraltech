@@ -117,9 +117,6 @@ export const ClinicalHistoryHeader = ({
             </span>
           )}
         </h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem" }}>
-          ID Historia: {historia.id}
-        </p>
         <p
           style={{
             color: "var(--text-secondary)",

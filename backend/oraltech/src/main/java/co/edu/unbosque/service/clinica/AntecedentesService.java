@@ -110,6 +110,13 @@ public class AntecedentesService {
         // Observaciones
         ant.setObservaciones(req.getObservaciones());
 
+        if (existente.isPresent()) {
+            if (ant.getAudit() == null) {
+                ant.setAudit(new co.edu.unbosque.entity.clinica.AuditFields());
+            }
+            ant.getAudit().setUpdatedAt(java.time.LocalDateTime.now());
+        }
+
         return toResponse(repo.save(ant));
     }
 

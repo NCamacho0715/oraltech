@@ -67,8 +67,8 @@ const SubseccionBloqueoBanner = ({ bloqueo, meta, seccionKey, readOnly }) => (
     ) : bloqueo.bloqueado && (
       <div style={{ border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
         Registro bloqueado
-        {meta.createdAt && ` · ${formatFechaCorta(meta.createdAt)}`}
-        {meta.createdBy && ` · ${meta.createdBy}`}
+        {(meta.updatedAt || meta.createdAt) && ` · ${formatFechaCorta(meta.updatedAt || meta.createdAt)}`}
+        {(meta.updatedBy || meta.createdBy) && ` · ${meta.updatedBy || meta.createdBy}`}
       </div>
     )}
     {!readOnly && bloqueo.bloqueado && bloqueo.isAdmin && (
@@ -222,7 +222,12 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
         if (d.value.data) {
           setDiag(mapDiagnosticoToState(d.value.data));
           marcarDiagRegistrado(d.value.data);
-          setDiagMeta({ createdAt: d.value.data.createdAt ?? null, createdBy: d.value.data.createdBy ?? '' });
+          setDiagMeta({
+            createdAt: d.value.data.createdAt ?? null,
+            createdBy: d.value.data.createdBy ?? '',
+            updatedAt: d.value.data.updatedAt ?? null,
+            updatedBy: d.value.data.updatedBy ?? '',
+          });
         }
       } else if (!isNotFound(d.reason)) {
         setLoadError(extractErrorMessage(d.reason));
@@ -232,7 +237,12 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
         if (p.value.data) {
           setPron({ descripcion: p.value.data.descripcion ?? '' });
           marcarPronRegistrado(p.value.data);
-          setPronMeta({ createdAt: p.value.data.createdAt ?? null, createdBy: p.value.data.createdBy ?? '' });
+          setPronMeta({
+            createdAt: p.value.data.createdAt ?? null,
+            createdBy: p.value.data.createdBy ?? '',
+            updatedAt: p.value.data.updatedAt ?? null,
+            updatedBy: p.value.data.updatedBy ?? '',
+          });
         }
       } else if (!isNotFound(p.reason)) {
         setLoadError(extractErrorMessage(p.reason));
@@ -269,7 +279,12 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
         // Re-mapear explícitamente desde la respuesta para no mezclar formas.
         if (dRes?.data) {
           setDiag(mapDiagnosticoToState(dRes.data));
-          setDiagMeta({ createdAt: dRes.data.createdAt ?? null, createdBy: dRes.data.createdBy ?? '' });
+          setDiagMeta({
+            createdAt: dRes.data.createdAt ?? null,
+            createdBy: dRes.data.createdBy ?? '',
+            updatedAt: dRes.data.updatedAt ?? null,
+            updatedBy: dRes.data.updatedBy ?? '',
+          });
         }
         bloqueoDiag.marcarGuardado();
         exitoAlguno = true;
@@ -285,7 +300,12 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
         const pRes = await clinicaService.upsertPronostico(historiaId, pron);
         if (pRes?.data) {
           setPron({ descripcion: pRes.data.descripcion ?? prevPron.descripcion });
-          setPronMeta({ createdAt: pRes.data.createdAt ?? null, createdBy: pRes.data.createdBy ?? '' });
+          setPronMeta({
+            createdAt: pRes.data.createdAt ?? null,
+            createdBy: pRes.data.createdBy ?? '',
+            updatedAt: pRes.data.updatedAt ?? null,
+            updatedBy: pRes.data.updatedBy ?? '',
+          });
         }
         bloqueoPron.marcarGuardado();
         exitoAlguno = true;

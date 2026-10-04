@@ -58,6 +58,13 @@ public class ConsentimientoService {
         c.setFirmaOdontologo(req.getFirmaOdontologo());
         c.setFirmaTestigo(req.getFirmaTestigo());
 
+        if (existente.isPresent()) {
+            if (c.getAudit() == null) {
+                c.setAudit(new co.edu.unbosque.entity.clinica.AuditFields());
+            }
+            c.getAudit().setUpdatedAt(java.time.LocalDateTime.now());
+        }
+
         return toResponse(repo.save(c));
     }
 

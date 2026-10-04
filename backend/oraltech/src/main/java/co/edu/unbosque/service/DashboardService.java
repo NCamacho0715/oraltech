@@ -16,12 +16,19 @@ public class DashboardService {
     private final PatientRepository patientRepository;
     private final HistoriaClinicaRepository historiaClinicaRepository;
     private final AppointmentRepository appointmentRepository;
+    private final BackupService backupService;
 
     public DashboardStats getStats() {
+        long availableBackups = 0;
+        try {
+            availableBackups = backupService.listBackups().size();
+        } catch (Exception ignored) {}
+
         return DashboardStats.builder()
                 .totalPatients(patientRepository.count())
                 .totalClinicalHistories(historiaClinicaRepository.count())
                 .appointmentsToday(appointmentRepository.countByAppointmentDate(LocalDate.now()))
+                .availableBackups(availableBackups)
                 .build();
     }
 }

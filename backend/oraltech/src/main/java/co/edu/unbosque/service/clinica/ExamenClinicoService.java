@@ -95,6 +95,13 @@ public class ExamenClinicoService {
         ex.setBruxismo(req.getBruxismo());
         ex.setHabOtros(req.getHabOtros());
 
+        if (existente.isPresent()) {
+            if (ex.getAudit() == null) {
+                ex.setAudit(new co.edu.unbosque.entity.clinica.AuditFields());
+            }
+            ex.getAudit().setUpdatedAt(java.time.LocalDateTime.now());
+        }
+
         return toResponse(repo.save(ex));
     }
 

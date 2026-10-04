@@ -22,7 +22,6 @@ import {
 } from "./appointmentConstants";
 
 export const AppointmentsNavbar = ({
-  navigate,
   isDark,
   toggleTheme,
   handleLogout,
@@ -60,21 +59,6 @@ export const AppointmentsNavbar = ({
       </h2>
     </div>
     <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-      <button
-        onClick={() => navigate("/dashboard")}
-        style={{
-          background: "var(--secondary-soft)",
-          color: "var(--primary)",
-          padding: "0.45rem 1rem",
-          borderRadius: "8px",
-          fontSize: "0.85rem",
-          fontWeight: 600,
-          border: "none",
-          cursor: "pointer",
-        }}
-      >
-        Dashboard
-      </button>
       <button
         onClick={toggleTheme}
         aria-label="Alternar tema visual"

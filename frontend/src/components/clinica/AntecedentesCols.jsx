@@ -1,6 +1,12 @@
 import React from 'react';
 import { Save, CheckCircle } from "lucide-react";
 
+const toBoolean = (val) => {
+  if (typeof val === "boolean") return val;
+  if (typeof val === "string") return val.trim().toLowerCase() === "true";
+  return Boolean(val);
+};
+
 export const CheckboxRow = ({
   label,
   field,
@@ -10,65 +16,75 @@ export const CheckboxRow = ({
   readOnly,
   data,
   onChange,
-}) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-    <label
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "0.8rem",
-        padding: "0.6rem 0.8rem",
-        background: "var(--surface)",
-        border: "1px solid var(--border-color)",
-        borderRadius: "8px",
-        cursor: readOnly ? "default" : "pointer",
-        userSelect: "none",
-        minHeight: "45px",
-        width: "100%",
-        opacity: readOnly ? 0.8 : 1,
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={checked !== undefined ? checked : data[field] || false}
-        onChange={(e) => {
-          if (readOnly) return;
-          if (onToggle) {
-            onToggle(e.target.checked);
-          } else {
-            onChange(field, e.target.checked);
-          }
-        }}
-        disabled={readOnly}
+}) => {
+  const isChecked = toBoolean(
+    checked !== undefined ? checked : (field && data ? data[field] : false)
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+      <label
         style={{
-          width: "16px",
-          height: "16px",
-          flexShrink: 0,
-          accentColor: "var(--primary)",
-        }}
-      />
-      <span
-        style={{
-          fontSize: "0.9rem",
-          fontWeight: 500,
-          color: "var(--text-main)",
-          lineHeight: "1.2",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.8rem",
+          padding: "0.6rem 0.8rem",
+          background: "var(--surface)",
+          border: "1px solid var(--border-color)",
+          borderRadius: "8px",
+          cursor: readOnly ? "default" : "pointer",
+          userSelect: "none",
+          minHeight: "45px",
+          width: "100%",
+          opacity: readOnly ? 0.8 : 1,
         }}
       >
-        {label}
-      </span>
-    </label>
-    {(checked !== undefined ? checked : data[field]) && children && (
-      <div style={{ paddingLeft: "0.5rem" }}>{children}</div>
-    )}
-  </div>
-);
+        <input
+          type="checkbox"
+          checked={isChecked}
+          onChange={(e) => {
+            if (readOnly) return;
+            if (onToggle) {
+              onToggle(e.target.checked);
+            } else if (onChange && field) {
+              onChange(field, e.target.checked);
+            }
+          }}
+          disabled={readOnly}
+          style={{
+            width: "16px",
+            height: "16px",
+            flexShrink: 0,
+            accentColor: "var(--primary)",
+          }}
+        />
+        <span
+          style={{
+            fontSize: "0.9rem",
+            fontWeight: 500,
+            color: "var(--text-main)",
+            lineHeight: "1.2",
+          }}
+        >
+          {label}
+        </span>
+      </label>
+      {isChecked && children && (
+        <div style={{ paddingLeft: "0.5rem" }}>{children}</div>
+      )}
+    </div>
+  );
+};
 
 export const ColumnaIzquierdaAntecedentes = ({
   data,
   handleChange,
   locked,
   commonInputStyle,
+  hasFamOtros,
+  setHasFamOtros,
+  hasAlergias,
+  setHasAlergias,
 }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
     <section>
@@ -126,9 +142,9 @@ export const ColumnaIzquierdaAntecedentes = ({
         />
         <CheckboxRow
           label="Otros"
-          field="famOtros"
+          checked={hasFamOtros}
+          onToggle={setHasFamOtros}
           data={data}
-          onChange={handleChange}
           readOnly={locked}
         >
           <input
@@ -213,9 +229,9 @@ export const ColumnaIzquierdaAntecedentes = ({
         />
         <CheckboxRow
           label="Alergias"
-          field="alergias"
+          checked={hasAlergias}
+          onToggle={setHasAlergias}
           data={data}
-          onChange={handleChange}
           readOnly={locked}
         >
           <input

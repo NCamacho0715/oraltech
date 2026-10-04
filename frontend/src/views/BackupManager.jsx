@@ -165,7 +165,7 @@ export default function BackupManager() {
         padding: "0",
       }}
     >
-      <BackupNav onBack={() => navigate("/dashboard")} onRefresh={reloadBackups} />
+      <BackupNav onRefresh={reloadBackups} />
 
       <div
         style={{

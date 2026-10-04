@@ -46,6 +46,12 @@ public class AnamnesisService {
 
         anamnesis.setMotivoConsulta(request.getMotivoConsulta());
         anamnesis.setEstadoActual(request.getEstadoActual());
+        if (existente.isPresent()) {
+            if (anamnesis.getAudit() == null) {
+                anamnesis.setAudit(new co.edu.unbosque.entity.clinica.AuditFields());
+            }
+            anamnesis.getAudit().setUpdatedAt(java.time.LocalDateTime.now());
+        }
 
         return toResponse(repo.save(anamnesis));
     }

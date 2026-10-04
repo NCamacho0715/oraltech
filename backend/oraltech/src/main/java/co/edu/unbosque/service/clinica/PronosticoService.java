@@ -45,6 +45,14 @@ public class PronosticoService {
                 });
 
         p.setDescripcion(req.getDescripcion());
+
+        if (existente.isPresent()) {
+            if (p.getAudit() == null) {
+                p.setAudit(new co.edu.unbosque.entity.clinica.AuditFields());
+            }
+            p.getAudit().setUpdatedAt(java.time.LocalDateTime.now());
+        }
+
         return toResponse(repo.save(p));
     }
 

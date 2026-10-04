@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCurrentUser, logout } from "../services/authService";
+import { getCurrentUser } from "../services/authService";
 import { getAllPatients } from "../services/patientService";
 import {
   getAppointmentsByRange,
@@ -15,7 +15,6 @@ import {
 } from "../components/appointments/appointmentConstants";
 import AppointmentModal from "../components/appointments/AppointmentModal";
 import {
-  AppointmentsNavbar,
   AppointmentsCalendarHeader,
   AppointmentsCalendarGrid,
   AppointmentToast,
@@ -23,16 +22,13 @@ import {
 
 const Appointments = () => {
   const navigate = useNavigate();
-  const user = getCurrentUser();
+  const [user] = useState(() => getCurrentUser());
 
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // null | { mode: 'new'|'edit', data }
-  const [isDark, setIsDark] = useState(
-    document.documentElement.getAttribute("data-theme") === "dark",
-  );
   const [toast, setToast] = useState(null);
 
   // Redirect if not authenticated
@@ -88,18 +84,6 @@ const Appointments = () => {
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
-  };
-
-  const toggleTheme = () => {
-    const next = isDark ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", next);
-    setIsDark(!isDark);
-    localStorage.setItem("theme", next);
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
   };
 
   // Appointment CRUD
@@ -173,12 +157,6 @@ const Appointments = () => {
         ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
       `}</style>
 
-      <AppointmentsNavbar
-        navigate={navigate}
-        isDark={isDark}
-        toggleTheme={toggleTheme}
-        handleLogout={handleLogout}
-      />
 
       <AppointmentsCalendarHeader
         weekStart={weekStart}

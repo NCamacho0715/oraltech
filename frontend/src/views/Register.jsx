@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { register } from '../services/authService';
-import { User, Mail, Lock, ShieldCheck, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import AuthHeader from '../components/common/AuthHeader';
 
 const Register = () => {
@@ -99,16 +99,6 @@ const Register = () => {
                                 onChange={handleChange}
                                 required
                             />
-                        </div>
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="role">Rol en el Consultorio</label>
-                        <div className="input-wrapper">
-                            <select name="role" id="role" value={formData.role} onChange={handleChange}>
-                                <option value="DENTIST">Odontólogo</option>
-                                <option value="ADMIN">Administrador</option>
-                            </select>
                         </div>
                     </div>
 

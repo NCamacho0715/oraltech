@@ -46,7 +46,8 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
     setSaved(false);
     setSaveError('');
     try {
-      await clinicaService.upsertAnamnesis(historiaId, data);
+      const res = await clinicaService.upsertAnamnesis(historiaId, data);
+      if (res?.data) setData(res.data);
       bloqueo.marcarGuardado();
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -58,7 +59,7 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
     }
   };
 
-  const fechaBloqueo = formatFechaCorta(data.createdAt);
+  const fechaBloqueo = formatFechaCorta(data.updatedAt || data.createdAt);
 
   return (
     <>
@@ -71,7 +72,7 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
         <BloqueoBanner
           bloqueo={bloqueo}
           fechaBloqueo={fechaBloqueo}
-          createdBy={data.createdBy}
+          createdBy={data.updatedBy || data.createdBy}
         />
 
         {loadError && (

@@ -57,6 +57,13 @@ public class AnalisisPeriodontalService {
         entity.setInflamacion(req.getInflamacion());
         entity.setCambioColor(req.getCambioColor());
 
+        if (existente.isPresent()) {
+            if (entity.getAudit() == null) {
+                entity.setAudit(new co.edu.unbosque.entity.clinica.AuditFields());
+            }
+            entity.getAudit().setUpdatedAt(java.time.LocalDateTime.now());
+        }
+
         return toResponse(repo.save(entity));
     }
 

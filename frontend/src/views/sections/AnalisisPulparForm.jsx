@@ -77,7 +77,8 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
     setSaving(true);
     setSaveError('');
     try {
-      await clinicaService.upsertAnalisisPulpar(historiaId, data);
+      const res = await clinicaService.upsertAnalisisPulpar(historiaId, data);
+      if (res?.data) setData(res.data);
       bloqueo.marcarGuardado();
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
@@ -91,7 +92,7 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
 
   if (loading) return <div className="text-center p-5">Cargando Análisis Pulpar...</div>;
 
-  const fechaBloqueo = formatFechaCorta(data.createdAt);
+  const fechaBloqueo = formatFechaCorta(data.updatedAt || data.createdAt);
 
   return (
     <div style={{ background: 'var(--surface)', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)', marginBottom: '2rem' }}>
@@ -112,7 +113,7 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 1.5rem 0' }}>
           Registro bloqueado
           {fechaBloqueo ? ` · ${fechaBloqueo}` : ''}
-          {data.createdBy ? ` · ${data.createdBy}` : ''}
+          {(data.updatedBy || data.createdBy) ? ` · ${data.updatedBy || data.createdBy}` : ''}
         </p>
       )}
       {!bloqueo.bloqueado && bloqueo.desbloqueo && (

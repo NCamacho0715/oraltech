@@ -15,6 +15,15 @@ export const getAllPatients = async () => {
     return response.data;
 };
 
+export const getPatientsPaginated = async (page = 0, size = 10, search = '') => {
+    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
+    if (search && search.trim()) {
+        params.append('search', search.trim());
+    }
+    const response = await axios.get(`${API_URL}?${params.toString()}`, { headers: getAuthHeader() });
+    return response.data;
+};
+
 export const getPatientById = async (id) => {
     const response = await axios.get(`${API_URL}/${id}`, { headers: getAuthHeader() });
     return response.data;
