@@ -39,6 +39,56 @@ const CheckboxRow = ({ id, label, checked, locked, onToggle, textField, textValu
   </div>
 );
 
+const ExamenComplementarioFields = ({ data, locked, onToggle, onTextChange }) => (
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+    <CheckboxRow id="rxPanoramica" label="Rx Panorámica" checked={data.rxPanoramica} locked={locked} onToggle={onToggle} />
+    <CheckboxRow id="rxPeriapical" label="Rx Periapical" checked={data.rxPeriapical} locked={locked} onToggle={onToggle}
+      textField="rxPeriapicalComentario" textValue={data.rxPeriapicalComentario} textPlaceholder="Comentario (obligatorio)" onTextChange={onTextChange} />
+    <CheckboxRow id="paqueteOrtodoncia" label="Paquete Ortodoncia" checked={data.paqueteOrtodoncia} locked={locked} onToggle={onToggle} />
+    <CheckboxRow id="otros" label="Otros" checked={data.otros} locked={locked} onToggle={onToggle}
+      textField="otrosTexto" textValue={data.otrosTexto} textPlaceholder="Descripción (obligatoria)" onTextChange={onTextChange} />
+  </div>
+);
+
+const ExamenComplementarioHeader = ({ locked, saveError, showSuccess, saving, onSave, meta, showUnlockBtn, onUnlock }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '2px solid var(--border-color)', paddingBottom: '1rem' }}>
+    <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--accent)', margin: 0 }}>Exámenes Complementarios</h3>
+    {!locked ? (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {saveError && (
+          <span style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: 600 }}>
+            {saveError}
+          </span>
+        )}
+        {showSuccess && (
+          <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, animation: 'fadeIn 0.3s' }}>
+            <CheckCircle2 size={18} /> Guardado
+          </span>
+        )}
+        <button onClick={onSave} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+          <Save size={18} /> {saving ? 'Guardando...' : 'Guardar Exámenes'}
+        </button>
+      </div>
+    ) : (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+          <Lock size={16} /> Registro bloqueado
+          {meta.createdAt && ` · ${formatFechaCorta(meta.createdAt)}`}
+          {meta.createdBy && ` · ${meta.createdBy}`}
+        </span>
+        {showUnlockBtn && (
+          <button
+            onClick={onUnlock}
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
+          >
+            Desbloquear (ADMIN)
+          </button>
+        )}
+      </div>
+    )}
+  </div>
+);
+
 // HU-4: sección inmutable (crear-una-vez). Guardada → read-only con aviso;
 // vacía (204/404) → formulario editable sin ensuciar la consola.
 const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
@@ -52,10 +102,12 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
   const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
+    let ignore = false;
     const loadData = async () => {
       setLoadError('');
       try {
         const res = await clinicaService.getExamenComplementario(historiaId);
+        if (ignore) return;
         // 204 = "aún no registrado" (res.data vacío): editable, no error.
         if (res.data && res.data.id) {
           setData({
@@ -70,6 +122,7 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
           bloqueo.marcarRegistrado(res.data);
         }
       } catch (err) {
+        if (ignore) return;
         // 404 = "aún no registrado": estado vacío editable, no error.
         if (err?.response?.status === 404) return;
         setLoadError(err?.response?.data?.message || err?.message || 'No se pudieron cargar los exámenes complementarios');
@@ -78,6 +131,9 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
       }
     };
     loadData();
+    return () => {
+      ignore = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historiaId]);
 
@@ -112,7 +168,6 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
       if (err?.response?.status === 409) {
-        // Carrera o reintento: el backend ya lo bloqueó; reflejarlo sin falso "Guardado".
         bloqueo.marcarConflicto();
       }
       setSaveError(err?.response?.data?.message || err?.message || 'Error al guardar exámenes complementarios');
@@ -130,42 +185,16 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
 
   return (
     <div style={{ background: 'var(--surface)', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)', marginBottom: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '2px solid var(--border-color)', paddingBottom: '1rem' }}>
-        <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--accent)', margin: 0 }}>Exámenes Complementarios</h3>
-        {!locked ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            {saveError && (
-              <span style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: 600 }}>
-                {saveError}
-              </span>
-            )}
-            {showSuccess && (
-              <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, animation: 'fadeIn 0.3s' }}>
-                <CheckCircle2 size={18} /> Guardado
-              </span>
-            )}
-            <button onClick={handleSave} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
-              <Save size={18} /> {saving ? 'Guardando...' : 'Guardar Exámenes'}
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-              <Lock size={16} /> Registro bloqueado
-              {meta.createdAt && ` · ${formatFechaCorta(meta.createdAt)}`}
-              {meta.createdBy && ` · ${meta.createdBy}`}
-            </span>
-            {showUnlockBtn && (
-              <button
-                onClick={() => bloqueo.setShowUnlock(true)}
-                style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
-              >
-                Desbloquear (ADMIN)
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <ExamenComplementarioHeader
+        locked={locked}
+        saveError={saveError}
+        showSuccess={showSuccess}
+        saving={saving}
+        onSave={handleSave}
+        meta={meta}
+        showUnlockBtn={showUnlockBtn}
+        onUnlock={() => bloqueo.setShowUnlock(true)}
+      />
 
       {bloqueo.desbloqueo && (
         <div style={{ border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
@@ -186,14 +215,12 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-        <CheckboxRow id="rxPanoramica" label="Rx Panorámica" checked={data.rxPanoramica} locked={locked} onToggle={handleToggle} />
-        <CheckboxRow id="rxPeriapical" label="Rx Periapical" checked={data.rxPeriapical} locked={locked} onToggle={handleToggle}
-          textField="rxPeriapicalComentario" textValue={data.rxPeriapicalComentario} textPlaceholder="Comentario (obligatorio)" onTextChange={handleText} />
-        <CheckboxRow id="paqueteOrtodoncia" label="Paquete Ortodoncia" checked={data.paqueteOrtodoncia} locked={locked} onToggle={handleToggle} />
-        <CheckboxRow id="otros" label="Otros" checked={data.otros} locked={locked} onToggle={handleToggle}
-          textField="otrosTexto" textValue={data.otrosTexto} textPlaceholder="Descripción (obligatoria)" onTextChange={handleText} />
-      </div>
+      <ExamenComplementarioFields
+        data={data}
+        locked={locked}
+        onToggle={handleToggle}
+        onTextChange={handleText}
+      />
 
       <DesbloqueoModal
         abierto={bloqueo.showUnlock}

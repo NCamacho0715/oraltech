@@ -131,7 +131,9 @@ const CHILD_TEETH = {
   lowerLeft: [71, 72, 73, 74, 75],
 };
 
-const Odontogram = ({ data = [], onEventAdd, readOnly = false }) => {
+const DEFAULT_DATA = [];
+
+const Odontogram = ({ data = DEFAULT_DATA, onEventAdd, readOnly = false }) => {
   const [selectedTooth, setSelectedTooth] = useState(null);
   const [selectedFace, setSelectedFace] = useState(null);
   const [viewMode, setViewMode] = useState("ADULTO");
@@ -287,6 +289,8 @@ const Odontogram = ({ data = [], onEventAdd, readOnly = false }) => {
                 Hallazgo: Diente {selectedTooth} - Cara {selectedFace}
               </h4>
               <button
+                type="button"
+                aria-label="Cerrar selector de hallazgo"
                 onClick={() => setSelectedTooth(null)}
                 style={{
                   background: "var(--accent)",

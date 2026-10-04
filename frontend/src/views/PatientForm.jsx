@@ -3,6 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { createPatient, updatePatient, getPatientById } from '../services/patientService';
 import { ArrowLeft, Save, User, MapPin, Phone, Briefcase, Heart, Users as GuardianIcon } from 'lucide-react';
 
+const SectionHeader = ({ icon, title }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem', marginTop: '2rem', borderBottom: '2px solid var(--secondary-soft)', paddingBottom: '0.5rem' }}>
+        <div style={{ color: 'var(--primary)' }}>{icon}</div>
+        <h3 style={{ fontSize: '1.2rem', color: 'var(--primary)', fontWeight: 600 }}>{title}</h3>
+    </div>
+);
+
 const PatientForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -37,20 +44,27 @@ const PatientForm = () => {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (isEdit) {
+        let ignore = false;
+        if (id) {
+            const loadPatient = async () => {
+                try {
+                    const data = await getPatientById(id);
+                    if (!ignore) {
+                        setFormData(data);
+                    }
+                } catch (error) {
+                    if (!ignore) {
+                        console.error('Error loading patient:', error);
+                        alert('Error al cargar datos del paciente');
+                    }
+                }
+            };
             loadPatient();
         }
+        return () => {
+            ignore = true;
+        };
     }, [id]);
-
-    const loadPatient = async () => {
-        try {
-            const data = await getPatientById(id);
-            setFormData(data);
-        } catch (error) {
-            console.error('Error loading patient:', error);
-            alert('Error al cargar datos del paciente');
-        }
-    };
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -73,13 +87,6 @@ const PatientForm = () => {
             setLoading(false);
         }
     };
-
-    const SectionHeader = ({ icon, title }) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem', marginTop: '2rem', borderBottom: '2px solid var(--secondary-soft)', paddingBottom: '0.5rem' }}>
-            <div style={{ color: 'var(--primary)' }}>{icon}</div>
-            <h3 style={{ fontSize: '1.2rem', color: 'var(--primary)', fontWeight: 600 }}>{title}</h3>
-        </div>
-    );
 
     return (
         <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
@@ -104,20 +111,20 @@ const PatientForm = () => {
                     <SectionHeader icon={<User size={22} />} title="Identificación Personal" />
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                         <div className="form-group">
-                            <label>Nombre(s)</label>
-                            <input type="text" name="names" value={formData.names} onChange={handleChange} required />
+                            <label htmlFor="patient-names">Nombre(s)</label>
+                            <input id="patient-names" type="text" name="names" value={formData.names} onChange={handleChange} required />
                         </div>
                         <div className="form-group">
-                            <label>Primer Apellido</label>
-                            <input type="text" name="firstSurname" value={formData.firstSurname} onChange={handleChange} required />
+                            <label htmlFor="patient-firstSurname">Primer Apellido</label>
+                            <input id="patient-firstSurname" type="text" name="firstSurname" value={formData.firstSurname} onChange={handleChange} required />
                         </div>
                         <div className="form-group">
-                            <label>Segundo Apellido</label>
-                            <input type="text" name="secondSurname" value={formData.secondSurname} onChange={handleChange} />
+                            <label htmlFor="patient-secondSurname">Segundo Apellido</label>
+                            <input id="patient-secondSurname" type="text" name="secondSurname" value={formData.secondSurname} onChange={handleChange} />
                         </div>
                         <div className="form-group">
-                            <label>Tipo ID</label>
-                            <select name="idType" value={formData.idType} onChange={handleChange}>
+                            <label htmlFor="patient-idType">Tipo ID</label>
+                            <select id="patient-idType" name="idType" value={formData.idType} onChange={handleChange}>
                                 <option value="CC">Cédula de Ciudadanía</option>
                                 <option value="TI">Tarjeta de Identidad</option>
                                 <option value="RC">Registro Civil</option>
@@ -125,28 +132,28 @@ const PatientForm = () => {
                             </select>
                         </div>
                         <div className="form-group">
-                            <label>Número Identificación</label>
-                            <input type="text" name="idNumber" value={formData.idNumber} onChange={handleChange} required />
+                            <label htmlFor="patient-idNumber">Número Identificación</label>
+                            <input id="patient-idNumber" type="text" name="idNumber" value={formData.idNumber} onChange={handleChange} required />
                         </div>
                         <div className="form-group">
-                            <label>Correo Electrónico</label>
-                            <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="paciente@ejemplo.com" />
+                            <label htmlFor="patient-email">Correo Electrónico</label>
+                            <input id="patient-email" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="paciente@ejemplo.com" aria-label="Correo Electrónico" />
                         </div>
                         <div className="form-group">
-                            <label>Sexo</label>
-                            <select name="sex" value={formData.sex} onChange={handleChange}>
+                            <label htmlFor="patient-sex">Sexo</label>
+                            <select id="patient-sex" name="sex" value={formData.sex} onChange={handleChange}>
                                 <option value="M">Masculino</option>
                                 <option value="F">Femenino</option>
                                 <option value="O">Otro</option>
                             </select>
                         </div>
                         <div className="form-group">
-                            <label>Fecha de Nacimiento</label>
-                            <input type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} required />
+                            <label htmlFor="patient-birthDate">Fecha de Nacimiento</label>
+                            <input id="patient-birthDate" type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} required />
                         </div>
                         <div className="form-group">
-                            <label>Estado Civil</label>
-                            <select name="civilStatus" value={formData.civilStatus} onChange={handleChange}>
+                            <label htmlFor="patient-civilStatus">Estado Civil</label>
+                            <select id="patient-civilStatus" name="civilStatus" value={formData.civilStatus} onChange={handleChange}>
                                 <option value="SOLTERO">Soltero(a)</option>
                                 <option value="CASADO">Casado(a)</option>
                                 <option value="DIVORCIADO">Divorciado(a)</option>
@@ -159,68 +166,68 @@ const PatientForm = () => {
                     <SectionHeader icon={<MapPin size={22} />} title="Residencia y Contacto" />
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                         <div className="form-group">
-                            <label>Dirección Residencia</label>
-                            <input type="text" name="residenceAddress" value={formData.residenceAddress} onChange={handleChange} />
+                            <label htmlFor="patient-residenceAddress">Dirección Residencia</label>
+                            <input id="patient-residenceAddress" type="text" name="residenceAddress" value={formData.residenceAddress} onChange={handleChange} />
                         </div>
                         <div className="form-group">
-                            <label>Lugar Residencia (Ciudad/Barrio)</label>
-                            <input type="text" name="residencePlace" value={formData.residencePlace} onChange={handleChange} />
+                            <label htmlFor="patient-residencePlace">Lugar Residencia (Ciudad/Barrio)</label>
+                            <input id="patient-residencePlace" type="text" name="residencePlace" value={formData.residencePlace} onChange={handleChange} />
                         </div>
                         <div className="form-group">
-                            <label>Teléfono Residencia</label>
-                            <input type="text" name="residencePhone" value={formData.residencePhone} onChange={handleChange} />
+                            <label htmlFor="patient-residencePhone">Teléfono Residencia</label>
+                            <input id="patient-residencePhone" type="text" name="residencePhone" value={formData.residencePhone} onChange={handleChange} />
                         </div>
                         <div className="form-group">
-                            <label>Celular</label>
-                            <input type="text" name="cellphone" value={formData.cellphone} onChange={handleChange} />
+                            <label htmlFor="patient-cellphone">Celular</label>
+                            <input id="patient-cellphone" type="text" name="cellphone" value={formData.cellphone} onChange={handleChange} />
                         </div>
                     </div>
 
                     <SectionHeader icon={<Briefcase size={22} />} title="Ocupación y EPS" />
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                         <div className="form-group">
-                            <label>Ocupación</label>
-                            <input type="text" name="occupation" value={formData.occupation} onChange={handleChange} />
+                            <label htmlFor="patient-occupation">Ocupación</label>
+                            <input id="patient-occupation" type="text" name="occupation" value={formData.occupation} onChange={handleChange} />
                         </div>
                         <div className="form-group">
-                            <label>EPS / Aseguradora</label>
-                            <input type="text" name="eps" value={formData.eps} onChange={handleChange} />
+                            <label htmlFor="patient-eps">EPS / Aseguradora</label>
+                            <input id="patient-eps" type="text" name="eps" value={formData.eps} onChange={handleChange} />
                         </div>
                         <div className="form-group">
-                            <label>Lugar Oficina</label>
-                            <input type="text" name="officePlace" value={formData.officePlace} onChange={handleChange} />
+                            <label htmlFor="patient-officePlace">Lugar Oficina</label>
+                            <input id="patient-officePlace" type="text" name="officePlace" value={formData.officePlace} onChange={handleChange} />
                         </div>
                         <div className="form-group">
-                            <label>Teléfono Oficina</label>
-                            <input type="text" name="officePhone" value={formData.officePhone} onChange={handleChange} />
+                            <label htmlFor="patient-officePhone">Teléfono Oficina</label>
+                            <input id="patient-officePhone" type="text" name="officePhone" value={formData.officePhone} onChange={handleChange} />
                         </div>
                     </div>
 
                     <SectionHeader icon={<GuardianIcon size={22} />} title="Acudiente y Referencia" />
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                         <div className="form-group">
-                            <label>Nombre del Acudiente</label>
-                            <input type="text" name="guardianName" value={formData.guardianName} onChange={handleChange} />
+                            <label htmlFor="patient-guardianName">Nombre del Acudiente</label>
+                            <input id="patient-guardianName" type="text" name="guardianName" value={formData.guardianName} onChange={handleChange} />
                         </div>
                         <div className="form-group">
-                            <label>Parentesco Acudiente</label>
-                            <input type="text" name="guardianRelationship" value={formData.guardianRelationship} onChange={handleChange} />
+                            <label htmlFor="patient-guardianRelationship">Parentesco Acudiente</label>
+                            <input id="patient-guardianRelationship" type="text" name="guardianRelationship" value={formData.guardianRelationship} onChange={handleChange} />
                         </div>
                         <div className="form-group">
-                            <label>Teléfono Acudiente</label>
-                            <input type="text" name="guardianPhone" value={formData.guardianPhone} onChange={handleChange} />
+                            <label htmlFor="patient-guardianPhone">Teléfono Acudiente</label>
+                            <input id="patient-guardianPhone" type="text" name="guardianPhone" value={formData.guardianPhone} onChange={handleChange} />
                         </div>
                         <div className="form-group">
-                            <label>Referido por (Persona)</label>
-                            <input type="text" name="referredBy" value={formData.referredBy} onChange={handleChange} />
+                            <label htmlFor="patient-referredBy">Referido por (Persona)</label>
+                            <input id="patient-referredBy" type="text" name="referredBy" value={formData.referredBy} onChange={handleChange} />
                         </div>
                         <div className="form-group">
-                            <label>Teléfono Referencia</label>
-                            <input type="text" name="referrerPhone" value={formData.referrerPhone} onChange={handleChange} />
+                            <label htmlFor="patient-referrerPhone">Teléfono Referencia</label>
+                            <input id="patient-referrerPhone" type="text" name="referrerPhone" value={formData.referrerPhone} onChange={handleChange} />
                         </div>
                         <div className="form-group">
-                            <label>Teléfono Emergencias</label>
-                            <input type="text" name="emergencyPhone" value={formData.emergencyPhone} onChange={handleChange} />
+                            <label htmlFor="patient-emergencyPhone">Teléfono Emergencias</label>
+                            <input id="patient-emergencyPhone" type="text" name="emergencyPhone" value={formData.emergencyPhone} onChange={handleChange} />
                         </div>
                     </div>
 

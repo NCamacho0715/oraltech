@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { register } from '../services/authService';
-import { Stethoscope, User, Mail, Lock, ShieldCheck, RefreshCw } from 'lucide-react';
+import { User, Mail, Lock, ShieldCheck, RefreshCw } from 'lucide-react';
+import AuthHeader from '../components/common/AuthHeader';
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -36,15 +37,7 @@ const Register = () => {
     return (
         <div className="auth-container">
             <div className="auth-card register-page-card">
-                <div className="auth-header">
-                    <div className="logo-container">
-                        <div className="logo-icon">
-                            <Stethoscope size={24} />
-                        </div>
-                        <h1>OralTech</h1>
-                    </div>
-                    <p>Cree una cuenta para el personal del consultorio.</p>
-                </div>
+                <AuthHeader subtitle="Cree una cuenta para el personal del consultorio." />
 
                 <form onSubmit={handleSubmit}>
                     {error && <div className="error-message" style={{ color: 'var(--accent)', marginBottom: '1rem', fontSize: '0.9rem', textAlign: 'center' }}>{error}</div>}

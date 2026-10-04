@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import clinicaService from '../services/clinicaService';
 import { getCurrentUser } from '../services/authService';
 
@@ -20,30 +20,30 @@ export const useBloqueoSeccion = (seccion) => {
 
   const isAdmin = getCurrentUser()?.role === 'ADMIN';
 
-  const marcarRegistrado = (datos) => {
+  const marcarRegistrado = useCallback((datos) => {
     if (datos && datos.id) setBloqueado(true);
-  };
+  }, []);
 
-  const marcarGuardado = () => {
+  const marcarGuardado = useCallback(() => {
     setBloqueado(true);
     setDesbloqueo(null);
     setShowUnlock(false);
     setUnlockError('');
-  };
+  }, []);
 
-  const marcarConflicto = () => {
+  const marcarConflicto = useCallback(() => {
     // El backend ya lo bloqueó (409): reflejarlo sin falso "Guardado".
     setBloqueado(true);
     setDesbloqueo(null);
     setShowUnlock(false);
-  };
+  }, []);
 
-  const bloquear = () => {
+  const bloquear = useCallback(() => {
     // Bloqueo directo (p. ej. al cargar una lista de odontograma no vacía).
     setBloqueado(true);
-  };
+  }, []);
 
-  const solicitar = async (historiaId, motivo) => {
+  const solicitar = useCallback(async (historiaId, motivo) => {
     setUnlocking(true);
     setUnlockError('');
     try {
@@ -58,7 +58,7 @@ export const useBloqueoSeccion = (seccion) => {
     } finally {
       setUnlocking(false);
     }
-  };
+  }, [seccion]);
 
   return {
     bloqueado,

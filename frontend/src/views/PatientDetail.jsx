@@ -4,6 +4,25 @@ import { getPatientById } from '../services/patientService';
 import clinicaService from '../services/clinicaService';
 import { ArrowLeft, User, MapPin, Briefcase, Heart, Users as GuardianIcon, Phone, Mail, Calendar, Edit2, ClipboardList } from 'lucide-react';
 
+const DetailItem = ({ label, value }) => (
+    <div style={{ marginBottom: '1rem' }}>
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 500 }}>{label}</span>
+        <span style={{ fontSize: '1rem', color: 'var(--text-main)', fontWeight: 600 }}>{value || 'No registrado'}</span>
+    </div>
+);
+
+const Section = ({ icon, title, children }) => (
+    <div className="auth-card" style={{ maxWidth: '100%', padding: '2rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem', borderBottom: '1px solid #f0f0f0', paddingBottom: '0.5rem' }}>
+            <div style={{ color: 'var(--primary)' }}>{icon}</div>
+            <h3 style={{ fontSize: '1.2rem', color: 'var(--text-main)', fontWeight: 600 }}>{title}</h3>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            {children}
+        </div>
+    </div>
+);
+
 const PatientDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -16,30 +35,38 @@ const PatientDetail = () => {
     
 
     useEffect(() => {
-    const loadPatientData = async () => {
-        try {
-            setLoading(true);
-
-            const patientData = await getPatientById(id);
-            setPatient(patientData);
-
+        let ignore = false;
+        const loadPatientData = async () => {
             try {
-                // Sonda ligera (siempre 200): no genera 404 en consola si no hay historia.
-                const { data } = await clinicaService.historiaExists(id);
-                setHasHistoria(data?.exists === true);
-            } catch (err) {
-                setHistoriaError(err.response?.data?.message || err.message || 'No se pudo verificar la historia clínica');
-            }
-        } catch (error) {
-            console.error('Error loading patient data:', error);
-            alert('Error al cargar datos del paciente');
-        } finally {
-            setLoading(false);
-        }
-    };
+                setLoading(true);
 
-    loadPatientData();
-}, [id]);
+                const patientData = await getPatientById(id);
+                if (ignore) return;
+                setPatient(patientData);
+
+                try {
+                    // Sonda ligera (siempre 200): no genera 404 en consola si no hay historia.
+                    const { data } = await clinicaService.historiaExists(id);
+                    if (ignore) return;
+                    setHasHistoria(data?.exists === true);
+                } catch (err) {
+                    if (ignore) return;
+                    setHistoriaError(err.response?.data?.message || err.message || 'No se pudo verificar la historia clínica');
+                }
+            } catch (error) {
+                if (ignore) return;
+                console.error('Error loading patient data:', error);
+                alert('Error al cargar datos del paciente');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadPatientData();
+        return () => {
+            ignore = true;
+        };
+    }, [id]);
 
     const handleCreateHistoria = async () => {
         try {
@@ -49,31 +76,13 @@ const PatientDetail = () => {
             navigate(`/patients/${id}/clinica`);
         } catch (error) {
             setCreateError(error.response?.data?.message || error.message || 'Error al crear historia clínica');
+        } finally {
             setCreatingHistory(false);
         }
     };
 
     if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando información...</div>;
     if (!patient) return <div style={{ padding: '2rem', textAlign: 'center' }}>Paciente no encontrado</div>;
-
-    const DetailItem = ({ label, value }) => (
-        <div style={{ marginBottom: '1rem' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 500 }}>{label}</span>
-            <span style={{ fontSize: '1rem', color: 'var(--text-main)', fontWeight: 600 }}>{value || 'No registrado'}</span>
-        </div>
-    );
-
-    const Section = ({ icon, title, children }) => (
-        <div className="auth-card" style={{ maxWidth: '100%', padding: '2rem', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem', borderBottom: '1px solid #f0f0f0', paddingBottom: '0.5rem' }}>
-                <div style={{ color: 'var(--primary)' }}>{icon}</div>
-                <h3 style={{ fontSize: '1.2rem', color: 'var(--text-main)', fontWeight: 600 }}>{title}</h3>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                {children}
-            </div>
-        </div>
-    );
 
     return (
         <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>

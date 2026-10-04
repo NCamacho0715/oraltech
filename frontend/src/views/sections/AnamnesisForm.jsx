@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Save, CheckCircle } from 'lucide-react';
 import clinicaService from '../../services/clinicaService';
 import { useBloqueoSeccion } from '../../hooks/useBloqueoSeccion';
 import DesbloqueoModal from '../../components/clinica/DesbloqueoModal';
+import BloqueoBanner from '../../components/clinica/BloqueoBanner';
+import SectionSaveFooter from '../../components/clinica/SectionSaveFooter';
 import { formatFechaCorta } from '../../utils/fechas';
 
 const AnamnesisForm = ({ historiaId, readOnly }) => {
@@ -15,21 +16,27 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
   const locked = readOnly || bloqueo.bloqueado;
 
   useEffect(() => {
+    let ignore = false;
     const load = async () => {
       setLoadError('');
       try {
         const res = await clinicaService.getAnamnesis(historiaId);
+        if (ignore) return;
         if (res.data) {
           setData(res.data);
           bloqueo.marcarRegistrado(res.data);
         }
       } catch (err) {
+        if (ignore) return;
         // 404 = "aún no registrada": estado vacío, no error.
         if (err?.response?.status === 404) return;
         setLoadError(err?.response?.data?.message || err?.message || 'No se pudo cargar la anamnesis');
       }
     };
     load();
+    return () => {
+      ignore = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historiaId]);
 
@@ -61,18 +68,11 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
             Anamnesis
         </h3>
 
-        {bloqueo.bloqueado && (
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 1.5rem 0' }}>
-            Registro bloqueado
-            {fechaBloqueo ? ` · ${fechaBloqueo}` : ''}
-            {data.createdBy ? ` · ${data.createdBy}` : ''}
-          </p>
-        )}
-        {!bloqueo.bloqueado && bloqueo.desbloqueo && (
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 1.5rem 0' }}>
-            Desbloqueada por {bloqueo.desbloqueo.por}: {bloqueo.desbloqueo.motivo}
-          </p>
-        )}
+        <BloqueoBanner
+          bloqueo={bloqueo}
+          fechaBloqueo={fechaBloqueo}
+          createdBy={data.createdBy}
+        />
 
         {loadError && (
           <div style={{ border: '1px solid var(--accent)', background: 'rgba(230, 57, 70, 0.08)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
@@ -82,8 +82,10 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
         )}
         
         <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Motivo de Consulta</label>
+          <label htmlFor="anamnesis-motivo-consulta" style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Motivo de Consulta</label>
           <textarea
+            id="anamnesis-motivo-consulta"
+            aria-label="Motivo de Consulta"
             value={data.motivoConsulta}
             onChange={(e) => setData({ ...data, motivoConsulta: e.target.value })}
             readOnly={locked}
@@ -108,8 +110,10 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
         </div>
 
         <div style={{ marginBottom: '2rem' }}>
-          <label style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Estado Actual</label>
+          <label htmlFor="anamnesis-estado-actual" style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Estado Actual</label>
           <textarea
+            id="anamnesis-estado-actual"
+            aria-label="Estado Actual"
             value={data.estadoActual}
             onChange={(e) => setData({ ...data, estadoActual: e.target.value })}
             readOnly={locked}
@@ -133,32 +137,15 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
           />
         </div>
 
-        {!readOnly && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '1.5rem', borderTop: '2px solid rgba(0, 119, 182, 0.1)' }}>
-            {!locked && (
-              <button
-                type="submit"
-                disabled={saving}
-                className="btn-primary"
-                style={{ width: 'auto', padding: '0.8rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: saving ? 0.7 : 1, margin: 0 }}
-              >
-                <Save size={18} />
-                {saving ? 'Guardando...' : 'Guardar Anamnesis'}
-              </button>
-            )}
-            {!readOnly && bloqueo.bloqueado && bloqueo.isAdmin && (
-              <button
-                type="button"
-                onClick={() => bloqueo.setShowUnlock(true)}
-                style={{ width: 'auto', padding: '0.8rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, borderRadius: '10px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer' }}
-              >
-                Desbloquear (ADMIN)
-              </button>
-            )}
-            {saveError && <span style={{ color: 'var(--accent)', fontWeight: 500 }}>{saveError}</span>}
-            {saved && <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 500 }}><CheckCircle size={18} /> Guardado</span>}
-          </div>
-        )}
+        <SectionSaveFooter
+          readOnly={readOnly}
+          locked={locked}
+          saving={saving}
+          saved={saved}
+          saveError={saveError}
+          bloqueo={bloqueo}
+          saveButtonText="Guardar Anamnesis"
+        />
       </div>
     </form>
     <DesbloqueoModal

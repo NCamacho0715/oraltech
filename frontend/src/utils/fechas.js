@@ -23,3 +23,12 @@ export const formatFechaCorta = (value) => {
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleDateString();
 };
+
+/** Formatea una fecha y hora del backend a fecha/hora local; '—' si falta o es inválida. */
+export const formatFechaHora = (valor) => {
+  if (!valor) return "—";
+  const d = parseFechaLocal(valor);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString();
+};
+

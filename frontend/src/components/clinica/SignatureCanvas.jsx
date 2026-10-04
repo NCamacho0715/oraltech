@@ -78,11 +78,12 @@ const SignatureCanvas = ({
 
   return (
     <div className="flex flex-col gap-2 border p-2 rounded bg-white shadow-sm">
-      <label className="text-sm font-semibold text-gray-700">{label}</label>
+      <span className="text-sm font-semibold text-gray-700">{label}</span>
       <canvas
         ref={canvasRef}
         width={width}
         height={height}
+        aria-label={label}
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}

@@ -24,14 +24,35 @@ const DesbloqueoModal = ({ abierto, seccionNombre, onConfirm, onCancel, error, e
   };
 
   return (
-    <div onClick={cancelar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '1rem' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', color: 'var(--text-main)', border: '1px solid var(--border-color)', padding: '2rem', borderRadius: '16px', width: '480px', maxWidth: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '1rem' }}>
+      <button
+        type="button"
+        aria-label="Cerrar modal de desbloqueo"
+        tabIndex={-1}
+        onClick={cancelar}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          border: 'none',
+          cursor: 'default',
+          zIndex: -1,
+        }}
+      />
+      <div style={{ background: 'var(--surface)', color: 'var(--text-main)', border: '1px solid var(--border-color)', padding: '2rem', borderRadius: '16px', width: '480px', maxWidth: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', position: 'relative', zIndex: 1 }}>
         <h3 style={{ margin: '0 0 0.5rem 0', fontWeight: 800, fontSize: '1.2rem' }}>Desbloquear {seccionNombre}</h3>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: '0 0 1rem 0' }}>
           Desbloqueo excepcional de <strong style={{ color: 'var(--accent)' }}>un solo uso</strong>, solo para
           corregir un error de digitación. Quedará registrado con tu usuario y este motivo.
         </p>
+        <label
+          htmlFor="desbloqueo-motivo"
+          style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}
+        >
+          Motivo del desbloqueo *
+        </label>
         <textarea
+          id="desbloqueo-motivo"
           value={motivo}
           onChange={(e) => setMotivo(e.target.value)}
           placeholder="Describe el error de digitación a corregir (mínimo 10 caracteres)"

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { login } from '../services/authService';
-import { Stethoscope, Lock, User, RefreshCw } from 'lucide-react';
+import { Lock, User, RefreshCw } from 'lucide-react';
+import AuthHeader from '../components/common/AuthHeader';
 
 const Login = () => {
     const [credentials, setCredentials] = useState({ username: '', password: '' });
@@ -30,15 +31,7 @@ const Login = () => {
     return (
         <div className="auth-container">
             <div className="auth-card login-page-card">
-                <div className="auth-header">
-                    <div className="logo-container">
-                        <div className="logo-icon">
-                            <Stethoscope size={24} />
-                        </div>
-                        <h1>OralTech</h1>
-                    </div>
-                    <p>Bienvenido de nuevo. Ingrese sus credenciales.</p>
-                </div>
+                <AuthHeader subtitle="Bienvenido de nuevo. Ingrese sus credenciales." />
 
                 <form onSubmit={handleSubmit}>
                     {error && <div className="error-message" style={{ color: 'var(--accent)', marginBottom: '1rem', fontSize: '0.9rem', textAlign: 'center' }}>{error}</div>}

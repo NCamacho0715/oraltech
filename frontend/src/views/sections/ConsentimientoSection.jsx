@@ -4,7 +4,61 @@ import clinicaService from '../../services/clinicaService';
 import SignatureCanvas from '../../components/clinica/SignatureCanvas';
 import { useBloqueoSeccion } from '../../hooks/useBloqueoSeccion';
 import DesbloqueoModal from '../../components/clinica/DesbloqueoModal';
+import BloqueoBanner from '../../components/clinica/BloqueoBanner';
 import { formatFechaCorta } from '../../utils/fechas';
+
+const FirmaBox = ({ firma, label, onSave, locked }) => {
+  if (firma) {
+    return (
+      <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fbff', padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <img src={`data:image/png;base64,${firma}`} alt={label} style={{ maxHeight: '120px', filter: 'contrast(1.2)' }} />
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '1rem' }}>{label} (Registrada)</span>
+      </div>
+    );
+  }
+  if (!locked) {
+    return <SignatureCanvas label={label} onSave={onSave} />;
+  }
+  return null;
+};
+
+const ReadOnlyConsentimientoBanner = () => (
+  <div style={{ background: 'var(--primary)', padding: '1.5rem', borderRadius: '12px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 15px rgba(0, 119, 182, 0.3)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
+      <ShieldCheck size={32} />
+      <div>
+        <h4 style={{ margin: '0 0 0.3rem 0', fontWeight: 700, fontSize: '1.1rem' }}>Registro Validado y Bloqueado</h4>
+        <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.9 }}>Este documento clínico no puede ser editado por medidas de seguridad legal.</p>
+      </div>
+    </div>
+    <button
+      type="button"
+      aria-label="Descargar documento (deshabilitado)"
+      disabled
+      style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '8px', color: 'white', cursor: 'not-allowed', opacity: 0.7 }}
+    >
+      <Download size={24} />
+    </button>
+  </div>
+);
+
+const ConsentimientoActions = ({ readOnly, bloqueado, handleSave, saving, disabled, saveError, saved }) => {
+  if (readOnly || bloqueado) return null;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '2rem', borderTop: '1px solid #e2e8f0' }}>
+      <button
+        onClick={handleSave}
+        disabled={saving || disabled}
+        className="btn-primary"
+        style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '1rem 2.5rem', fontSize: '1.1rem', margin: 0, opacity: (saving || disabled) ? 0.6 : 1 }}
+      >
+        <Save size={22} /> {saving ? 'Guardando...' : 'Guardar Consentimiento Permanente'}
+      </button>
+      {saveError && <p style={{ color: 'var(--accent)', fontSize: '0.95rem', marginTop: '1rem', fontWeight: 700 }}>{saveError}</p>}
+      {saved && <p style={{ color: 'var(--success)', fontSize: '0.95rem', marginTop: '1rem', fontWeight: 700 }}>¡Consentimiento Guardado Exitosamente!</p>}
+    </div>
+  );
+};
 
 const ConsentimientoSection = ({ historiaId, readOnly }) => {
   const [data, setData] = useState({
@@ -18,31 +72,38 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
   const [loadError, setLoadError] = useState('');
   const [saveError, setSaveError] = useState('');
 
-  // HU-2: bloqueo de sección inmutable (slug 'consentimiento').
   const bloqueo = useBloqueoSeccion('consentimiento');
+  const { marcarRegistrado } = bloqueo;
   const [meta, setMeta] = useState({ createdAt: null, createdBy: '' });
   const locked = readOnly || bloqueo.bloqueado;
 
   useEffect(() => {
-    loadData();
-  }, [historiaId]);
-
-  const loadData = async () => {
-    setLoadError('');
-    try {
-      const res = await clinicaService.getConsentimiento(historiaId);
-      if (res.data) {
-        setData(res.data);
-        bloqueo.marcarRegistrado(res.data);
-        setMeta({ createdAt: res.data.createdAt ?? null, createdBy: res.data.createdBy ?? '' });
+    let ignore = false;
+    const loadData = async () => {
+      setLoadError('');
+      try {
+        const res = await clinicaService.getConsentimiento(historiaId);
+        if (ignore) return;
+        if (res.data) {
+          setData(res.data);
+          marcarRegistrado(res.data);
+          setMeta({ createdAt: res.data.createdAt ?? null, createdBy: res.data.createdBy ?? '' });
+        }
+      } catch (err) {
+        if (ignore) return;
+        // 404 = "aún no registrado": se conserva el contenido por defecto, no es error.
+        if (err?.response?.status === 404) return;
+        setLoadError(err?.response?.data?.message || err?.message || 'No se pudo cargar el consentimiento');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      // 404 = "aún no registrado": se conserva el contenido por defecto, no es error.
-      if (err?.response?.status === 404) return;
-      setLoadError(err?.response?.data?.message || err?.message || 'No se pudo cargar el consentimiento');
-    }
-    finally { setLoading(false); }
-  };
+    };
+
+    loadData();
+    return () => {
+      ignore = true;
+    };
+  }, [historiaId, marcarRegistrado]);
 
   // HU-2: tras guardar OK la sección queda bloqueada; un 409 del backend
   // marca el conflicto con su mensaje real (nunca falso "Guardado").
@@ -91,24 +152,12 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
         )}
         
         {/* HU-2: banner de bloqueo / desbloqueo de la sección inmutable */}
-        {bloqueo.desbloqueo ? (
-          <div style={{ border: '1px solid var(--success)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
-            Desbloqueada por {bloqueo.desbloqueo.por}: {bloqueo.desbloqueo.motivo}
-          </div>
-        ) : bloqueo.bloqueado && (
-          <div style={{ border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
-            Registro bloqueado
-            {meta.createdAt && ` · ${formatFechaCorta(meta.createdAt)}`}
-            {meta.createdBy && ` · ${meta.createdBy}`}
-          </div>
-        )}
-        {!readOnly && bloqueo.bloqueado && bloqueo.isAdmin && (
-          <div style={{ marginBottom: '1.5rem' }}>
-            <button onClick={() => bloqueo.setShowUnlock(true)} style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer' }}>
-              Desbloquear (ADMIN) · consentimiento
-            </button>
-          </div>
-        )}
+        <BloqueoBanner
+          bloqueo={bloqueo}
+          fechaBloqueo={formatFechaCorta(meta.createdAt)}
+          createdBy={meta.createdBy}
+          readOnly={readOnly}
+        />
         
         <div style={{ background: '#f8fafc', padding: '2rem', borderRadius: '12px', border: '1px dashed #cbd5e1', marginBottom: '2.5rem', color: 'var(--text-secondary)', fontSize: '1.05rem', fontStyle: 'italic', lineHeight: 1.6 }}>
             {locked ? (
@@ -117,6 +166,7 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
                 <textarea 
                     value={data.contenido}
                     onChange={e => setData({...data, contenido: e.target.value})}
+                    aria-label="Texto del consentimiento informado"
                     style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', resize: 'vertical', minHeight: '120px', color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', fontStyle: 'inherit', lineHeight: 'inherit' }}
                     placeholder="Escribe aquí el texto del consentimiento..."
                 />
@@ -124,65 +174,32 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '2rem' }}>
-            <div>
-                {data.firmaPaciente ? (
-                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fbff', padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <img src={`data:image/png;base64,${data.firmaPaciente}`} alt="Firma Paciente" style={{ maxHeight: '120px', filter: 'contrast(1.2)' }} />
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '1rem' }}>Firma del Paciente (Registrada)</span>
-                    </div>
-                ) : !locked && (
-                    <SignatureCanvas 
-                        label="Firma del Paciente / Tutor"
-                        onSave={(sig) => setData({...data, firmaPaciente: sig})}
-                    />
-                )}
-            </div>
-
-            <div>
-                {data.firmaTestigo ? (
-                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fbff', padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <img src={`data:image/png;base64,${data.firmaTestigo}`} alt="Firma Testigo" style={{ maxHeight: '120px', filter: 'contrast(1.2)' }} />
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '1rem' }}>Firma del Testigo (Registrada)</span>
-                    </div>
-                ) : !locked && (
-                    <SignatureCanvas 
-                        label="Firma del Testigo (Opcional)"
-                        onSave={(sig) => setData({...data, firmaTestigo: sig})}
-                    />
-                )}
-            </div>
+            <FirmaBox
+              firma={data.firmaPaciente}
+              label="Firma del Paciente / Tutor"
+              onSave={(sig) => setData({...data, firmaPaciente: sig})}
+              locked={locked}
+            />
+            <FirmaBox
+              firma={data.firmaTestigo}
+              label="Firma del Testigo (Opcional)"
+              onSave={(sig) => setData({...data, firmaTestigo: sig})}
+              locked={locked}
+            />
         </div>
 
-        {!readOnly && !bloqueo.bloqueado && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '2rem', borderTop: '1px solid #e2e8f0' }}>
-                <button
-                    onClick={handleSave}
-                    disabled={saving || !data.firmaPaciente}
-                    className="btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '1rem 2.5rem', fontSize: '1.1rem', margin: 0, opacity: (saving || !data.firmaPaciente) ? 0.6 : 1 }}
-                >
-                    <Save size={22} /> {saving ? 'Guardando...' : 'Guardar Consentimiento Permanente'}
-                </button>
-                {saveError && <p style={{ color: 'var(--accent)', fontSize: '0.95rem', marginTop: '1rem', fontWeight: 700 }}>{saveError}</p>}
-                {saved && <p style={{ color: 'var(--success)', fontSize: '0.95rem', marginTop: '1rem', fontWeight: 700 }}>¡Consentimiento Guardado Exitosamente!</p>}
-            </div>
-        )}
+        <ConsentimientoActions
+          readOnly={readOnly}
+          bloqueado={bloqueo.bloqueado}
+          handleSave={handleSave}
+          saving={saving}
+          disabled={!data.firmaPaciente}
+          saveError={saveError}
+          saved={saved}
+        />
       </div>
       
-      {readOnly && (
-          <div style={{ background: 'var(--primary)', padding: '1.5rem', borderRadius: '12px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 15px rgba(0, 119, 182, 0.3)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
-                  <ShieldCheck size={32} />
-                  <div>
-                      <h4 style={{ margin: '0 0 0.3rem 0', fontWeight: 700, fontSize: '1.1rem' }}>Registro Validado y Bloqueado</h4>
-                      <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.9 }}>Este documento clínico no puede ser editado por medidas de seguridad legal.</p>
-                  </div>
-              </div>
-              <button disabled style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '8px', color: 'white', cursor: 'not-allowed', opacity: 0.7 }}>
-                  <Download size={24} />
-              </button>
-          </div>
-      )}
+      {readOnly && <ReadOnlyConsentimientoBanner />}
 
       {/* HU-2: desbloqueo excepcional ADMIN (un solo uso, con motivo) */}
       <DesbloqueoModal

@@ -17,11 +17,7 @@ const PatientList = () => {
     const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
     const isAdmin = currentUser?.role === 'ADMIN';
 
-    useEffect(() => {
-        loadPatients();
-    }, []);
-
-    const loadPatients = async () => {
+    const reloadPatients = async () => {
         try {
             const data = await getAllPatients();
             setPatients(data);
@@ -31,6 +27,27 @@ const PatientList = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        let ignore = false;
+        const fetchPatients = async () => {
+            try {
+                const data = await getAllPatients();
+                if (!ignore) {
+                    setPatients(data);
+                }
+            } catch (error) {
+                if (!ignore) console.error('Error loading patients:', error);
+            } finally {
+                if (!ignore) setLoading(false);
+            }
+        };
+
+        fetchPatients();
+        return () => {
+            ignore = true;
+        };
+    }, []);
 
     const openDeleteConfirm = (patient) => {
         setDeleteTarget(patient);
@@ -53,7 +70,7 @@ const PatientList = () => {
             await deletePatient(deleteTarget.id);
             setDeleteTarget(null);
             setConfirmWord('');
-            loadPatients();
+            reloadPatients();
         } catch (error) {
             if (error.response?.status === 403) {
                 setDeleteError('Solo un administrador puede eliminar pacientes');
@@ -102,6 +119,7 @@ const PatientList = () => {
                 <input 
                     type="text" 
                     placeholder="Buscar por nombre, apellido o identificación..." 
+                    aria-label="Buscar pacientes por nombre, apellido o identificación"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     style={{ 
@@ -127,24 +145,32 @@ const PatientList = () => {
                         <div 
                             key={patient.id} 
                             className="auth-card" 
-                            onClick={() => navigate(`/patients/${patient.id}`)}
-                            style={{ padding: '1.5rem', position: 'relative', cursor: 'pointer' }}
+                            style={{ padding: '1.5rem', position: 'relative' }}
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                <div style={{ 
-                                    width: '45px', 
-                                    height: '45px', 
-                                    borderRadius: '12px', 
-                                    background: 'var(--secondary-soft)', 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'center',
-                                    color: 'var(--primary)'
-                                }}>
+                                <button
+                                    type="button"
+                                    aria-label={`Ver historia clínica de ${patient.names} ${patient.firstSurname}`}
+                                    onClick={() => navigate(`/patients/${patient.id}`)}
+                                    style={{ 
+                                        width: '45px', 
+                                        height: '45px', 
+                                        borderRadius: '12px', 
+                                        background: 'var(--secondary-soft)', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center',
+                                        color: 'var(--primary)',
+                                        border: 'none',
+                                        cursor: 'pointer'
+                                    }}
+                                >
                                     <Eye size={24} />
-                                </div>
+                                </button>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <button 
+                                        type="button"
+                                        aria-label="Editar paciente"
                                         onClick={(e) => { e.stopPropagation(); navigate(`/patients/edit/${patient.id}`); }} 
                                         style={{ color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }} 
                                         title="Editar"
@@ -153,6 +179,8 @@ const PatientList = () => {
                                     </button>
                                     {isAdmin && (
                                     <button
+                                        type="button"
+                                        aria-label="Eliminar paciente"
                                         onClick={(e) => { e.stopPropagation(); openDeleteConfirm(patient); }}
                                         style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }}
                                         title="Eliminar (solo administradores)"
@@ -162,18 +190,31 @@ const PatientList = () => {
                                     )}
                                 </div>
                             </div>
-                            <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.2rem' }}>
-                                {patient.names} {patient.firstSurname}
-                            </h3>
-                            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                                {patient.idType}: {patient.idNumber}
-                            </p>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f0f0f0', paddingTop: '1rem', marginTop: '1rem' }}>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                    <strong>Edad:</strong> {patient.age} años
-                                </div>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                    <strong>Celular:</strong> {patient.cellphone || 'N/A'}
+                            <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => navigate(`/patients/${patient.id}`)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        navigate(`/patients/${patient.id}`);
+                                    }
+                                }}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.2rem' }}>
+                                    {patient.names} {patient.firstSurname}
+                                </h3>
+                                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                                    {patient.idType}: {patient.idNumber}
+                                </p>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f0f0f0', paddingTop: '1rem', marginTop: '1rem' }}>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                        <strong>Edad:</strong> {patient.age} años
+                                    </div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                        <strong>Celular:</strong> {patient.cellphone || 'N/A'}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -182,18 +223,30 @@ const PatientList = () => {
             )}
 
             {deleteTarget && (
-                <div onClick={closeDeleteConfirm} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '1rem' }}>
-                    <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', color: 'var(--text-main)', border: '1px solid var(--border-color)', padding: '2rem', borderRadius: '16px', width: '440px', maxWidth: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
+                <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '1rem' }}>
+                    <button
+                        type="button"
+                        aria-label="Cerrar modal de eliminación"
+                        tabIndex={-1}
+                        onClick={closeDeleteConfirm}
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', border: 'none', cursor: 'default' }}
+                    />
+                    <div style={{ position: 'relative', background: 'var(--surface)', color: 'var(--text-main)', border: '1px solid var(--border-color)', padding: '2rem', borderRadius: '16px', width: '440px', maxWidth: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', zIndex: 1 }}>
                         <h3 style={{ margin: '0 0 0.5rem 0', fontWeight: 800, fontSize: '1.2rem' }}>Eliminar paciente</h3>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: '0 0 1.5rem 0' }}>
                             Se eliminará a <strong style={{ color: 'var(--text-main)' }}>{deleteTarget.names} {deleteTarget.firstSurname}</strong> ({deleteTarget.idType}: {deleteTarget.idNumber}).
                             Esta acción no se puede deshacer. Para confirmar, escribe <strong style={{ color: 'var(--accent)' }}>CONFIRMAR</strong>.
                         </p>
+                        <label htmlFor="confirm-delete-input" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
+                            Escribe CONFIRMAR para continuar:
+                        </label>
                         <input
+                            id="confirm-delete-input"
                             type="text"
                             value={confirmWord}
                             onChange={(e) => setConfirmWord(e.target.value)}
                             placeholder="Escribe CONFIRMAR"
+                            aria-label="Confirmación de eliminación"
                             style={{ width: '100%', padding: '0.8rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '1rem', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)', marginBottom: '1rem' }}
                         />
                         {deleteError && <p style={{ color: 'var(--accent)', fontSize: '0.9rem', fontWeight: 600 }}>{deleteError}</p>}
