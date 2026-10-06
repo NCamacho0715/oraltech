@@ -72,6 +72,9 @@ public class Patient {
     private String referredBy;
 
     private String referrerPhone;
+ 
+    @Transient
+    private Boolean hasHistoriaClinica;
 
     @PostLoad
     @PostPersist

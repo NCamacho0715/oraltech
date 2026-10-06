@@ -53,6 +53,13 @@ public class OdontogramaProtesisService {
         op.setFijaSuperior(req.getFijaSuperior());
         op.setFijaInferior(req.getFijaInferior());
 
+        if (existente.isPresent()) {
+            if (op.getAudit() == null) {
+                op.setAudit(new co.edu.unbosque.entity.clinica.AuditFields());
+            }
+            op.getAudit().setUpdatedAt(java.time.LocalDateTime.now());
+        }
+
         return toResponse(repo.save(op));
     }
 

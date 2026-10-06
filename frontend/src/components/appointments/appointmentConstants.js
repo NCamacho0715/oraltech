@@ -44,7 +44,17 @@ export const STATUS_CONFIG = {
   },
 };
 
-export const toISO = (d) => d.toISOString().split("T")[0];
+export const toISO = (d) => {
+  if (!d) return "";
+  if (typeof d === "string") {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+    d = new Date(d);
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export const getWeekStart = (date) => {
   const d = new Date(date);

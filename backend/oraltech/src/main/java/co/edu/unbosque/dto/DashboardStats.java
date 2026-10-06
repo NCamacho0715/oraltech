@@ -9,4 +9,5 @@ public class DashboardStats {
     private long totalPatients;
     private long totalClinicalHistories;
     private long appointmentsToday; // Future implementation
+    private long availableBackups;
 }

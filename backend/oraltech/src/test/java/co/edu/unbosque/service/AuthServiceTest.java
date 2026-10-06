@@ -169,4 +169,25 @@ class AuthServiceTest {
         });
         verify(userRepository, never()).findByUsername(anyString());
     }
+
+    @Test
+    @DisplayName("UT-AUTH-07: Debería lanzar excepción si se intenta registrar un administrador públicamente")
+    void shouldThrowExceptionWhenRegisteringAdminPublicly() {
+        // GIVEN
+        RegisterRequest adminRequest = RegisterRequest.builder()
+                .username("admin_test")
+                .password("ClaveSegura123")
+                .name("Admin Test")
+                .email("admin@oraltech.com")
+                .role(Role.ADMIN)
+                .build();
+
+        // WHEN & THEN
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            authService.register(adminRequest);
+        });
+
+        assertTrue(exception.getMessage().contains("No se permite registrar administradores"));
+        verify(userRepository, never()).save(any(User.class));
+    }
 }

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -36,19 +37,30 @@ public class ExamenComplementarioService {
         validate(req);
 
         boolean desbloqueado = desbloqueoService.consumirSiVigente(historiaId, SeccionHistoria.COMPLEMENTARIO);
-        if (repo.findByHistoriaClinicaId(historiaId).isPresent() && !desbloqueado) {
+        Optional<ExamenComplementario> existente = repo.findByHistoriaClinicaId(historiaId);
+        if (existente.isPresent() && !desbloqueado) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     SeccionHistoria.COMPLEMENTARIO.mensajeBloqueo());
         }
 
-        ExamenComplementario entity = new ExamenComplementario();
-        entity.setHistoriaClinica(historia);
+        ExamenComplementario entity = existente.orElseGet(() -> {
+            ExamenComplementario newE = new ExamenComplementario();
+            newE.setHistoriaClinica(historia);
+            return newE;
+        });
         entity.setRxPanoramica(Boolean.TRUE.equals(req.getRxPanoramica()));
         entity.setRxPeriapical(Boolean.TRUE.equals(req.getRxPeriapical()));
         entity.setRxPeriapicalComentario(req.getRxPeriapicalComentario());
         entity.setPaqueteOrtodoncia(Boolean.TRUE.equals(req.getPaqueteOrtodoncia()));
         entity.setOtros(Boolean.TRUE.equals(req.getOtros()));
         entity.setOtrosTexto(req.getOtrosTexto());
+
+        if (existente.isPresent()) {
+            if (entity.getAudit() == null) {
+                entity.setAudit(new co.edu.unbosque.entity.clinica.AuditFields());
+            }
+            entity.getAudit().setUpdatedAt(java.time.LocalDateTime.now());
+        }
 
         return toResponse(repo.save(entity));
     }

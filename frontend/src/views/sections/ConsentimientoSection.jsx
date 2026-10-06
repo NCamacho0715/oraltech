@@ -87,7 +87,12 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
         if (res.data) {
           setData(res.data);
           marcarRegistrado(res.data);
-          setMeta({ createdAt: res.data.createdAt ?? null, createdBy: res.data.createdBy ?? '' });
+          setMeta({
+            createdAt: res.data.createdAt ?? null,
+            createdBy: res.data.createdBy ?? '',
+            updatedAt: res.data.updatedAt ?? null,
+            updatedBy: res.data.updatedBy ?? '',
+          });
         }
       } catch (err) {
         if (ignore) return;
@@ -117,7 +122,14 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
     setSaved(false);
     try {
       const res = await clinicaService.upsertConsentimiento(historiaId, data);
-      if (res?.data) setMeta({ createdAt: res.data.createdAt ?? null, createdBy: res.data.createdBy ?? '' });
+      if (res?.data) {
+        setMeta({
+          createdAt: res.data.createdAt ?? null,
+          createdBy: res.data.createdBy ?? '',
+          updatedAt: res.data.updatedAt ?? null,
+          updatedBy: res.data.updatedBy ?? '',
+        });
+      }
       bloqueo.marcarGuardado();
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -154,8 +166,8 @@ const ConsentimientoSection = ({ historiaId, readOnly }) => {
         {/* HU-2: banner de bloqueo / desbloqueo de la sección inmutable */}
         <BloqueoBanner
           bloqueo={bloqueo}
-          fechaBloqueo={formatFechaCorta(meta.createdAt)}
-          createdBy={meta.createdBy}
+          fechaBloqueo={formatFechaCorta(meta.updatedAt || meta.createdAt)}
+          createdBy={meta.updatedBy || meta.createdBy}
           readOnly={readOnly}
         />
         

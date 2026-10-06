@@ -37,9 +37,7 @@ const HallazgosList = ({ data, loadError, actionError }) => (
   </div>
 );
 
-const ProtesisCard = ({
-  protesis,
-  setProtesis,
+const ProtesisHeader = ({
   locked,
   showSuccess,
   handleSaveProtesis,
@@ -48,128 +46,130 @@ const ProtesisCard = ({
   showUnlockBtn,
   bloqueo,
 }) => (
-  <div style={{ marginTop: '3rem', background: 'var(--surface)', padding: '2rem', borderRadius: '15px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)', position: 'relative' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-      <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)', margin: 0 }}>Información Adicional de Prótesis</h4>
-      {!locked ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          {showSuccess && (
-            <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, animation: 'fadeIn 0.3s' }}>
-              <CheckCircle2 size={18} /> Guardado exitoso
-            </span>
-          )}
-          <button
-            onClick={handleSaveProtesis}
-            disabled={savingProtesis}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px var(--primary-soft)', transition: 'background-color 0.3s, border-color 0.3s, color 0.3s, transform 0.3s, box-shadow 0.3s, opacity 0.3s', opacity: savingProtesis ? 0.7 : 1 }}
-            onMouseEnter={e => !savingProtesis && (e.currentTarget.style.transform = 'translateY(-2px)')}
-            onMouseLeave={e => !savingProtesis && (e.currentTarget.style.transform = 'translateY(0)')}
-          >
-            <Save size={18} /> {savingProtesis ? 'Guardando...' : 'Guardar Prótesis'}
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            <Lock size={16} /> Registro bloqueado
-            {protesisMeta.createdAt && ` · ${formatFechaCorta(protesisMeta.createdAt)}`}
-            {protesisMeta.createdBy && ` · ${protesisMeta.createdBy}`}
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+    <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)', margin: 0 }}>Información Adicional de Prótesis</h4>
+    {!locked ? (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {showSuccess && (
+          <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600 }}>
+            <CheckCircle2 size={18} /> Guardado exitoso
           </span>
-          {showUnlockBtn && (
-            <button
-              onClick={() => bloqueo.setShowUnlock(true)}
-              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
-            >
-              Desbloquear (ADMIN)
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-
-    {bloqueo.desbloqueo && (
-      <div style={{ border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
-        Desbloqueada por {bloqueo.desbloqueo.por}: {bloqueo.desbloqueo.motivo}
+        )}
+        <button
+          onClick={handleSaveProtesis}
+          disabled={savingProtesis}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px var(--primary-soft)', opacity: savingProtesis ? 0.7 : 1 }}
+        >
+          <Save size={18} /> {savingProtesis ? 'Guardando...' : 'Guardar Prótesis'}
+        </button>
+      </div>
+    ) : (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+          <Lock size={16} /> Registro bloqueado
+          {(protesisMeta.updatedAt || protesisMeta.createdAt) && ` · ${formatFechaCorta(protesisMeta.updatedAt || protesisMeta.createdAt)}`}
+          {(protesisMeta.updatedBy || protesisMeta.createdBy) && ` · ${protesisMeta.updatedBy || protesisMeta.createdBy}`}
+        </span>
+        {showUnlockBtn && (
+          <button
+            onClick={() => bloqueo.setShowUnlock(true)}
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
+          >
+            Desbloquear (ADMIN)
+          </button>
+        )}
       </div>
     )}
+  </div>
+);
 
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-      {/* Arco Superior */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <h5 style={{ fontWeight: 700, color: 'var(--text-main)', borderLeft: '4px solid var(--primary)', paddingLeft: '0.5rem' }}>Arco Superior</h5>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'var(--secondary-soft)', padding: '1.2rem', borderRadius: '12px' }}>
-          {[
-            { id: 'totalSuperior', label: 'Prótesis total superior' },
-            { id: 'parcialAcriSuperior', label: 'Prótesis parcial acrílica superior' },
-            { id: 'removibleMetSuperior', label: 'Prótesis removible metálica superior' }
-          ].map(item => (
-            <label key={item.id} htmlFor={`odont-${item.id}`} style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: locked ? 'default' : 'pointer', fontSize: '0.95rem' }}>
-              <input 
-                id={`odont-${item.id}`}
-                aria-label={item.label}
-                type="checkbox" 
-                checked={protesis[item.id] || false} 
-                onChange={e => setProtesis(prev => ({ ...prev, [item.id]: e.target.checked }))} 
-                disabled={locked} 
-                style={{ width: '20px', height: '20px', accentColor: 'var(--primary)', cursor: 'pointer' }} 
-              />
-              <span>{item.label}</span>
-            </label>
-          ))}
-          <div style={{ marginTop: '0.5rem' }}>
-            <label htmlFor="odont-protesis-fija-superior" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem', textTransform: 'uppercase' }}>Prótesis fija superior:</label>
-            <textarea 
-              id="odont-protesis-fija-superior"
-              aria-label="Detalles de prótesis fija superior"
-              value={protesis.fijaSuperior || ''} 
-              onChange={e => setProtesis(prev => ({ ...prev, fijaSuperior: e.target.value }))}
-              disabled={locked}
-              placeholder="Detalles sobre puentes o coronas fijas..."
-              style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-main)', minHeight: '80px', resize: 'none' }}
-            />
-          </div>
-        </div>
-      </div>
+const SUPERIOR_ITEMS = [
+  { id: 'totalSuperior', label: 'Prótesis total superior' },
+  { id: 'parcialAcriSuperior', label: 'Prótesis parcial acrílica superior' },
+  { id: 'removibleMetSuperior', label: 'Prótesis removible metálica superior' }
+];
 
-      {/* Arco Inferior */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <h5 style={{ fontWeight: 700, color: 'var(--text-main)', borderLeft: '4px solid var(--accent)', paddingLeft: '0.5rem' }}>Arco Inferior</h5>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'var(--secondary-soft)', padding: '1.2rem', borderRadius: '12px' }}>
-          {[
-            { id: 'totalInferior', label: 'Prótesis total inferior' },
-            { id: 'parcialAcriInferior', label: 'Prótesis parcial acrílica inferior' },
-            { id: 'removibleMetInferior', label: 'Prótesis removible metálica inferior' }
-          ].map(item => (
-            <label key={item.id} htmlFor={`odont-${item.id}`} style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: locked ? 'default' : 'pointer', fontSize: '0.95rem' }}>
-              <input 
-                id={`odont-${item.id}`}
-                aria-label={item.label}
-                type="checkbox" 
-                checked={protesis[item.id] || false} 
-                onChange={e => setProtesis(prev => ({ ...prev, [item.id]: e.target.checked }))} 
-                disabled={locked} 
-                style={{ width: '20px', height: '20px', accentColor: 'var(--accent)', cursor: 'pointer' }} 
-              />
-              <span>{item.label}</span>
-            </label>
-          ))}
-          <div style={{ marginTop: '0.5rem' }}>
-            <label htmlFor="odont-protesis-fija-inferior" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem', textTransform: 'uppercase' }}>Prótesis fija inferior:</label>
-            <textarea 
-              id="odont-protesis-fija-inferior"
-              aria-label="Detalles de prótesis fija inferior"
-              value={protesis.fijaInferior || ''} 
-              onChange={e => setProtesis(prev => ({ ...prev, fijaInferior: e.target.value }))}
-              disabled={locked}
-              placeholder="Detalles sobre puentes o coronas fijas..."
-              style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-main)', minHeight: '80px', resize: 'none' }}
-            />
-          </div>
-        </div>
+const INFERIOR_ITEMS = [
+  { id: 'totalInferior', label: 'Prótesis total inferior' },
+  { id: 'parcialAcriInferior', label: 'Prótesis parcial acrílica inferior' },
+  { id: 'removibleMetInferior', label: 'Prótesis removible metálica inferior' }
+];
+
+const ProtesisArchSection = ({ title, borderColor, accentColor, items, protesis, setProtesis, locked, fijaKey, fijaLabel, fijaId }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <h5 style={{ fontWeight: 700, color: 'var(--text-main)', borderLeft: `4px solid ${borderColor}`, paddingLeft: '0.5rem' }}>{title}</h5>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'var(--secondary-soft)', padding: '1.2rem', borderRadius: '12px' }}>
+      {items.map(item => (
+        <label key={item.id} htmlFor={`odont-${item.id}`} style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: locked ? 'default' : 'pointer', fontSize: '0.95rem' }}>
+          <input 
+            id={`odont-${item.id}`}
+            aria-label={item.label}
+            type="checkbox" 
+            checked={Boolean(protesis[item.id])} 
+            onChange={e => setProtesis(prev => ({ ...prev, [item.id]: e.target.checked }))} 
+            disabled={locked} 
+            style={{ width: '20px', height: '20px', accentColor, cursor: 'pointer' }} 
+          />
+          <span>{item.label}</span>
+        </label>
+      ))}
+      <div style={{ marginTop: '0.5rem' }}>
+        <label htmlFor={fijaId} style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem', textTransform: 'uppercase' }}>{fijaLabel}:</label>
+        <textarea 
+          id={fijaId}
+          aria-label={`Detalles de ${fijaLabel.toLowerCase()}`}
+          value={protesis[fijaKey] || ''} 
+          onChange={e => setProtesis(prev => ({ ...prev, [fijaKey]: e.target.value }))}
+          disabled={locked}
+          placeholder="Detalles sobre puentes o coronas fijas..."
+          style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-main)', minHeight: '80px', resize: 'none' }}
+        />
       </div>
     </div>
   </div>
 );
+
+const ProtesisCard = (props) => {
+  const { protesis, setProtesis, locked, bloqueo } = props;
+  return (
+    <div style={{ marginTop: '3rem', background: 'var(--surface)', padding: '2rem', borderRadius: '15px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)', position: 'relative' }}>
+      <ProtesisHeader {...props} />
+
+      {bloqueo.desbloqueo && (
+        <div style={{ border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+          Desbloqueada por {bloqueo.desbloqueo.por}: {bloqueo.desbloqueo.motivo}
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+        <ProtesisArchSection
+          title="Arco Superior"
+          borderColor="var(--primary)"
+          accentColor="var(--primary)"
+          items={SUPERIOR_ITEMS}
+          protesis={protesis}
+          setProtesis={setProtesis}
+          locked={locked}
+          fijaKey="fijaSuperior"
+          fijaLabel="Prótesis fija superior"
+          fijaId="odont-protesis-fija-superior"
+        />
+        <ProtesisArchSection
+          title="Arco Inferior"
+          borderColor="var(--accent)"
+          accentColor="var(--accent)"
+          items={INFERIOR_ITEMS}
+          protesis={protesis}
+          setProtesis={setProtesis}
+          locked={locked}
+          fijaKey="fijaInferior"
+          fijaLabel="Prótesis fija inferior"
+          fijaId="odont-protesis-fija-inferior"
+        />
+      </div>
+    </div>
+  );
+};
 
 const OdontogramaSection = ({ historiaId, readOnly }) => {
   const [data, setData] = useState([]);
@@ -224,7 +224,12 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
           if (ignore) return;
           if (resProt.data) {
             setProtesis(resProt.data);
-            setProtesisMeta({ createdAt: resProt.data.createdAt || null, createdBy: resProt.data.createdBy || '' });
+            setProtesisMeta({
+              createdAt: resProt.data.createdAt || null,
+              createdBy: resProt.data.createdBy || '',
+              updatedAt: resProt.data.updatedAt || null,
+              updatedBy: resProt.data.updatedBy || '',
+            });
             marcarRegistrado(resProt.data);
           }
         } catch (errProt) {
@@ -278,7 +283,12 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
       const res = await clinicaService.upsertProtesis(historiaId, protesis);
       if (res.data) {
         setProtesis(res.data);
-        setProtesisMeta({ createdAt: res.data.createdAt || null, createdBy: res.data.createdBy || '' });
+        setProtesisMeta({
+          createdAt: res.data.createdAt || null,
+          createdBy: res.data.createdBy || '',
+          updatedAt: res.data.updatedAt || null,
+          updatedBy: res.data.updatedBy || '',
+        });
       }
       bloqueo.marcarGuardado();
       setShowSuccess(true);

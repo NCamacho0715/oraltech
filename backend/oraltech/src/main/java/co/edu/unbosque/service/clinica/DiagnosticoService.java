@@ -53,6 +53,13 @@ public class DiagnosticoService {
         d.setEsqueleticoFacial(req.getEsqueleticoFacial());
         d.setOtros(req.getOtros());
 
+        if (existente.isPresent()) {
+            if (d.getAudit() == null) {
+                d.setAudit(new co.edu.unbosque.entity.clinica.AuditFields());
+            }
+            d.getAudit().setUpdatedAt(java.time.LocalDateTime.now());
+        }
+
         return toResponse(repo.save(d));
     }
 

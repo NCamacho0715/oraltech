@@ -4,12 +4,15 @@ import co.edu.unbosque.entity.Patient;
 import co.edu.unbosque.repository.PatientRepository;
 import co.edu.unbosque.repository.clinica.HistoriaClinicaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -19,11 +22,29 @@ public class PatientService {
     private final HistoriaClinicaRepository historiaClinicaRepository;
 
     public List<Patient> getAllPatients() {
-        return patientRepository.findAll();
+        List<Patient> patients = patientRepository.findAll();
+        Set<Long> idsConHistoria = historiaClinicaRepository.findPacienteIdsConHistoria();
+        patients.forEach(p -> p.setHasHistoriaClinica(idsConHistoria.contains(p.getId())));
+        return patients;
+    }
+
+    public Page<Patient> getPatientsPaginated(Pageable pageable, String search) {
+        Page<Patient> page;
+        if (search != null && !search.trim().isEmpty()) {
+            page = patientRepository.searchPatients(search.trim(), pageable);
+        } else {
+            page = patientRepository.findAll(pageable);
+        }
+        Set<Long> idsConHistoria = historiaClinicaRepository.findPacienteIdsConHistoria();
+        page.getContent().forEach(p -> p.setHasHistoriaClinica(idsConHistoria.contains(p.getId())));
+        return page;
     }
 
     public Optional<Patient> getPatientById(Long id) {
-        return patientRepository.findById(id);
+        return patientRepository.findById(id).map(p -> {
+            p.setHasHistoriaClinica(historiaClinicaRepository.existsByPacienteId(id));
+            return p;
+        });
     }
 
     public Optional<Patient> getPatientByIdNumber(String idNumber) {

@@ -23,6 +23,9 @@ public class AuthService {
 
     public AuthenticationResponse register(RegisterRequest request) {
         try {
+            if (request.getRole() == User.Role.ADMIN) {
+                throw new IllegalArgumentException("No se permite registrar administradores públicamente. Contacte a un administrador.");
+            }
             if (userRepository.existsByUsername(request.getUsername())) {
                 throw new RuntimeException("Username already exists");
             }
@@ -30,12 +33,14 @@ public class AuthService {
                 throw new RuntimeException("Email already exists");
             }
 
+            var role = request.getRole() != null ? request.getRole() : User.Role.DENTIST;
+
             var user = User.builder()
                     .username(request.getUsername())
                     .password(passwordEncoder.encode(request.getPassword()))
                     .name(request.getName())
                     .email(request.getEmail())
-                    .role(request.getRole())
+                    .role(role)
                     .build();
 
             userRepository.save(user);

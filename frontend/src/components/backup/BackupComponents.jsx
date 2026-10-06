@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  ArrowLeft,
   Database,
   Play,
   RotateCcw,
@@ -100,7 +99,7 @@ export const Alert = ({ type, msg }) => {
   );
 };
 
-export const BackupNav = ({ onBack, onRefresh }) => (
+export const BackupNav = ({ onRefresh }) => (
   <nav
     style={{
       background: "var(--surface)",
@@ -112,20 +111,7 @@ export const BackupNav = ({ onBack, onRefresh }) => (
       marginBottom: "2rem",
     }}
   >
-    <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-      <button
-        onClick={onBack}
-        aria-label="Volver al panel principal"
-        style={{
-          background: "var(--secondary-soft)",
-          color: "var(--primary)",
-          padding: "0.5rem",
-          borderRadius: "10px",
-          display: "flex",
-        }}
-      >
-        <ArrowLeft size={20} />
-      </button>
+    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
       <Database size={22} color="var(--primary)" />
       <span
         style={{
@@ -409,7 +395,7 @@ export const RestoreConfirmCard = ({
 
     <Alert
       type="warn"
-      msg="⚠️ Esta acción sobrescribirá la base de datos actual. Todos los cambios posteriores al respaldo seleccionado se perderán permanentemente."
+      msg="⚠️ Esta acción sobrescribirá la base de datos actual. Como medida preventiva de seguridad (DRP), el sistema generará automáticamente un respaldo de seguridad del estado actual antes de proceder con la restauración."
     />
 
     {validating && (

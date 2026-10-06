@@ -17,8 +17,9 @@ import {
 
 export default function BackupManager() {
   const navigate = useNavigate();
-  const user = getCurrentUser();
-  const isAuthenticated = Boolean(user);
+  const [currentUser] = useState(() => getCurrentUser());
+  const isAuthenticated = Boolean(currentUser);
+  const isAdmin = currentUser?.role === "ADMIN";
 
   const [latest, setLatest] = useState(null);
   const [backups, setBackups] = useState([]);
@@ -52,6 +53,10 @@ export default function BackupManager() {
       navigate("/login");
       return;
     }
+    if (!isAdmin) {
+      navigate("/dashboard");
+      return;
+    }
 
     let ignore = false;
     const fetchInitial = async () => {
@@ -72,7 +77,7 @@ export default function BackupManager() {
     return () => {
       ignore = true;
     };
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, isAdmin, navigate]);
 
   const handleRunBackup = async () => {
     setRunning(true);
@@ -140,6 +145,10 @@ export default function BackupManager() {
     setRestoreResult(null);
   };
 
+  if (!isAuthenticated || !isAdmin) {
+    return null;
+  }
+
   if (loading) {
     return (
       <div
@@ -165,7 +174,7 @@ export default function BackupManager() {
         padding: "0",
       }}
     >
-      <BackupNav onBack={() => navigate("/dashboard")} onRefresh={reloadBackups} />
+      <BackupNav onRefresh={reloadBackups} />
 
       <div
         style={{

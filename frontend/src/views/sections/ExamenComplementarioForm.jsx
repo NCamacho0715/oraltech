@@ -72,9 +72,8 @@ const ExamenComplementarioHeader = ({ locked, saveError, showSuccess, saving, on
     ) : (
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-          <Lock size={16} /> Registro bloqueado
-          {meta.createdAt && ` · ${formatFechaCorta(meta.createdAt)}`}
-          {meta.createdBy && ` · ${meta.createdBy}`}
+          {(meta.updatedAt || meta.createdAt) && ` · ${formatFechaCorta(meta.updatedAt || meta.createdAt)}`}
+          {(meta.updatedBy || meta.createdBy) && ` · ${meta.updatedBy || meta.createdBy}`}
         </span>
         {showUnlockBtn && (
           <button
@@ -118,7 +117,12 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
             otros: !!res.data.otros,
             otrosTexto: res.data.otrosTexto || ''
           });
-          setMeta({ createdAt: res.data.createdAt, createdBy: res.data.createdBy });
+          setMeta({
+            createdAt: res.data.createdAt,
+            createdBy: res.data.createdBy,
+            updatedAt: res.data.updatedAt,
+            updatedBy: res.data.updatedBy,
+          });
           bloqueo.marcarRegistrado(res.data);
         }
       } catch (err) {
@@ -161,7 +165,12 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
     try {
       const res = await clinicaService.upsertExamenComplementario(historiaId, data);
       if (res.data) {
-        setMeta({ createdAt: res.data.createdAt || null, createdBy: res.data.createdBy || '' });
+        setMeta({
+          createdAt: res.data.createdAt || null,
+          createdBy: res.data.createdBy || '',
+          updatedAt: res.data.updatedAt || null,
+          updatedBy: res.data.updatedBy || '',
+        });
       }
       bloqueo.marcarGuardado();
       setShowSuccess(true);

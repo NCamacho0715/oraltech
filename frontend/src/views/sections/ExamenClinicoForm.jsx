@@ -256,6 +256,8 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
             setMeta({
               createdAt: res.data.createdAt || '',
               createdBy: res.data.createdBy || '',
+              updatedAt: res.data.updatedAt || '',
+              updatedBy: res.data.updatedBy || '',
             });
           }
         }
@@ -287,6 +289,8 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
         setMeta({
           createdAt: res.data.createdAt || '',
           createdBy: res.data.createdBy || '',
+          updatedAt: res.data.updatedAt || '',
+          updatedBy: res.data.updatedBy || '',
         });
       }
       // HU-2: tras guardar, la sección queda bloqueada.
@@ -306,7 +310,7 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
   const commonInputStyle = { width: '100%', padding: '0.5rem', border: '1px solid var(--primary)', borderRadius: '6px', background: 'var(--surface)', color: 'var(--text-main)', fontSize: '0.85rem' };
 
   // HU-2: fecha del registro bloqueado ('' si falta o es inválida, nunca 'Invalid Date').
-  const fechaBloqueo = formatFechaCorta(meta.createdAt);
+  const fechaBloqueo = formatFechaCorta(meta.updatedAt || meta.createdAt);
 
   return (
     <form onSubmit={handleSubmit} style={{ animation: 'fadeIn 0.4s ease-out' }}>
@@ -324,7 +328,7 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
       <ExamenClinicoBloqueoBanner
         bloqueo={bloqueo}
         fechaBloqueo={fechaBloqueo}
-        createdBy={meta.createdBy}
+        createdBy={meta.updatedBy || meta.createdBy}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem' }}>
