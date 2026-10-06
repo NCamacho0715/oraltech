@@ -395,7 +395,7 @@ export const RestoreConfirmCard = ({
 
     <Alert
       type="warn"
-      msg="⚠️ Esta acción sobrescribirá la base de datos actual. Todos los cambios posteriores al respaldo seleccionado se perderán permanentemente."
+      msg="⚠️ Esta acción sobrescribirá la base de datos actual. Como medida preventiva de seguridad (DRP), el sistema generará automáticamente un respaldo de seguridad del estado actual antes de proceder con la restauración."
     />
 
     {validating && (
