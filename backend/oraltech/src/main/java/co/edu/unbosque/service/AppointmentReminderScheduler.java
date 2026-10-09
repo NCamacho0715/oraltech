@@ -27,14 +27,26 @@ public class AppointmentReminderScheduler {
         LocalDate tomorrow = LocalDate.now().plusDays(1);
         log.info("Ejecutando recordatorios para citas del {}", tomorrow);
 
-        List<Appointment> appointments = appointmentRepository
-                .findByAppointmentDateBetweenOrderByAppointmentDateAscStartTimeAsc(tomorrow, tomorrow);
+        try {
+            List<Appointment> appointments = appointmentRepository
+                    .findByAppointmentDateBetweenOrderByAppointmentDateAscStartTimeAsc(tomorrow, tomorrow);
 
-        long sent = appointments.stream()
-                .filter(a -> !"CANCELADA".equals(a.getStatus()))
-                .peek(emailService::sendReminderEmail)
-                .count();
+            long sent = 0;
+            for (Appointment appointment : appointments) {
+                if (!"CANCELADA".equals(appointment.getStatus())) {
+                    try {
+                        emailService.sendReminderEmail(appointment);
+                        sent++;
+                    } catch (Exception ex) {
+                        log.warn("No se pudo procesar recordatorio para la cita {}: {}",
+                                appointment.getId(), ex.getMessage());
+                    }
+                }
+            }
 
-        log.info("Recordatorios enviados: {}", sent);
+            log.info("Recordatorios enviados: {}", sent);
+        } catch (Exception e) {
+            log.warn("Ejecución de recordatorios finalizada con advertencia: {}", e.getMessage());
+        }
     }
 }

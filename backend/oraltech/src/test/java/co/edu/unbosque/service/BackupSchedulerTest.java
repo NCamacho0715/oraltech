@@ -46,4 +46,30 @@ class BackupSchedulerTest {
 
         verify(backupService, times(1)).runBackup();
     }
+
+    @Test
+    @DisplayName("UT-BACKUP-SCHED-03: Debería ejecutar respaldo compensatorio si el último tiene más de 24 horas")
+    void shouldRunMissedBackupWhenOlderThan24Hours() {
+        when(backupService.isLastBackupOlderThanHours(24)).thenReturn(true);
+        when(backupService.runBackup()).thenReturn(Map.of(
+                "success", true,
+                "filename", "oraltech_missed.backup"
+        ));
+
+        scheduler.checkAndRunMissedBackup();
+
+        verify(backupService, times(1)).isLastBackupOlderThanHours(24);
+        verify(backupService, times(1)).runBackup();
+    }
+
+    @Test
+    @DisplayName("UT-BACKUP-SCHED-04: No debería ejecutar respaldo si existe uno reciente menor a 24 horas")
+    void shouldSkipBackupWhenRecentBackupExists() {
+        when(backupService.isLastBackupOlderThanHours(24)).thenReturn(false);
+
+        scheduler.checkAndRunMissedBackup();
+
+        verify(backupService, times(1)).isLastBackupOlderThanHours(24);
+        verify(backupService, never()).runBackup();
+    }
 }

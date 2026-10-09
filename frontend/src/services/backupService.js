@@ -1,6 +1,7 @@
 import axios from 'axios';
- 
-const API = '/api/backup';
+import { API_BASE_URL } from './apiConfig';
+
+const API = `${API_BASE_URL}/backup`;
 const h = () => { const u = JSON.parse(localStorage.getItem('user')); return u?.token ? { Authorization: `Bearer ${u.token}` } : {}; };
  
 export const getLatest = () => axios.get(`${API}/latest`, { headers: h() }).then(r => r.data);

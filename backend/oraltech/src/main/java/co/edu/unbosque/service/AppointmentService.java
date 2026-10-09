@@ -6,12 +6,14 @@ import co.edu.unbosque.entity.Patient;
 import co.edu.unbosque.repository.AppointmentRepository;
 import co.edu.unbosque.repository.PatientRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AppointmentService {
@@ -54,8 +56,12 @@ public class AppointmentService {
 
         Appointment saved = appointmentRepository.save(appointment);
 
-        // Send confirmation email asynchronously
-        emailService.sendConfirmationEmail(saved);
+        // Send confirmation email asynchronously (shielded against offline/network issues)
+        try {
+            emailService.sendConfirmationEmail(saved);
+        } catch (Exception e) {
+            log.warn("No se pudo despachar el correo de confirmación para la cita {}: {}", saved.getId(), e.getMessage());
+        }
 
         return toResponse(saved);
     }

@@ -88,4 +88,28 @@ class AppointmentReminderSchedulerTest {
         // THEN
         verify(emailService, never()).sendReminderEmail(any(Appointment.class));
     }
+
+    @Test
+    @DisplayName("UT-SCHED-04: Debería continuar procesando las demás citas si el envío de un recordatorio lanza error")
+    void shouldContinueSendingRemindersWhenOneFails() {
+        // GIVEN
+        Patient p1 = Patient.builder().id(1L).email("p1@test.com").build();
+        Patient p2 = Patient.builder().id(2L).email("p2@test.com").build();
+
+        Appointment appt1 = Appointment.builder().id(101L).patient(p1).status("PENDIENTE").build();
+        Appointment appt2 = Appointment.builder().id(102L).patient(p2).status("CONFIRMADA").build();
+
+        when(appointmentRepository.findByAppointmentDateBetweenOrderByAppointmentDateAscStartTimeAsc(
+                any(LocalDate.class), any(LocalDate.class)
+        )).thenReturn(List.of(appt1, appt2));
+
+        doThrow(new RuntimeException("No internet connection")).when(emailService).sendReminderEmail(appt1);
+
+        // WHEN
+        scheduler.sendDailyReminders();
+
+        // THEN
+        verify(emailService, times(1)).sendReminderEmail(appt1);
+        verify(emailService, times(1)).sendReminderEmail(appt2);
+    }
 }

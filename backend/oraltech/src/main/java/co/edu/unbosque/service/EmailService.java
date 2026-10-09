@@ -29,12 +29,17 @@ public class EmailService {
 
     @Async
     public void sendConfirmationEmail(Appointment appt) {
-        String to = appt.getPatient().getEmail();
-        if (to == null || to.isBlank()) {
-            log.warn("Paciente {} no tiene email, omitiendo confirmación.", appt.getPatient().getId());
-            return;
-        }
+        String to = null;
         try {
+            if (appt == null || appt.getPatient() == null) {
+                log.warn("Cita o paciente nulo, omitiendo confirmación por correo.");
+                return;
+            }
+            to = appt.getPatient().getEmail();
+            if (to == null || to.isBlank()) {
+                log.warn("Paciente {} no tiene email, omitiendo confirmación.", appt.getPatient().getId());
+                return;
+            }
             MimeMessage msg = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
             helper.setTo(to);
@@ -42,8 +47,9 @@ public class EmailService {
             helper.setText(buildConfirmationHtml(appt), true);
             mailSender.send(msg);
             log.info("Correo de confirmación enviado a {}", to);
-        } catch (Exception e) {
-            log.error("Error enviando confirmación a {}: {}", to, e.getMessage());
+        } catch (Throwable e) {
+            log.warn("No se pudo enviar confirmación a {} (posible falta de conexión a internet o servidor SMTP no disponible): {}",
+                    to != null ? to : "destinatario desconocido", e.getMessage());
         }
     }
 
@@ -51,12 +57,17 @@ public class EmailService {
 
     @Async
     public void sendReminderEmail(Appointment appt) {
-        String to = appt.getPatient().getEmail();
-        if (to == null || to.isBlank()) {
-            log.warn("Paciente {} no tiene email, omitiendo recordatorio.", appt.getPatient().getId());
-            return;
-        }
+        String to = null;
         try {
+            if (appt == null || appt.getPatient() == null) {
+                log.warn("Cita o paciente nulo, omitiendo recordatorio por correo.");
+                return;
+            }
+            to = appt.getPatient().getEmail();
+            if (to == null || to.isBlank()) {
+                log.warn("Paciente {} no tiene email, omitiendo recordatorio.", appt.getPatient().getId());
+                return;
+            }
             MimeMessage msg = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
             helper.setTo(to);
@@ -64,8 +75,9 @@ public class EmailService {
             helper.setText(buildReminderHtml(appt), true);
             mailSender.send(msg);
             log.info("Recordatorio enviado a {}", to);
-        } catch (Exception e) {
-            log.error("Error enviando recordatorio a {}: {}", to, e.getMessage());
+        } catch (Throwable e) {
+            log.warn("No se pudo enviar recordatorio a {} (posible falta de conexión a internet o servidor SMTP no disponible): {}",
+                    to != null ? to : "destinatario desconocido", e.getMessage());
         }
     }
 

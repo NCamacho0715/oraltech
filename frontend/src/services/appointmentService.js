@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from './apiConfig';
 
-const API_URL = 'http://localhost:8080/api/appointments';
+const API_URL = `${API_BASE_URL}/appointments`;
 
 const getAuthHeader = () => {
     const user = JSON.parse(localStorage.getItem('user'));

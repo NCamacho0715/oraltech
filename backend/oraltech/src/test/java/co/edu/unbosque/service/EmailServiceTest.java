@@ -117,4 +117,29 @@ class EmailServiceTest {
         // THEN
         verify(mailSender, never()).send(any(MimeMessage.class));
     }
+
+    @Test
+    @DisplayName("UT-MAIL-05: Debería capturar error de red/sin internet al enviar recordatorio sin propagar excepción")
+    void shouldHandleReminderMailExceptionWhenOfflineGracefully() {
+        // GIVEN
+        when(mailSender.createMimeMessage()).thenReturn(mockMimeMessage);
+        doThrow(new MailSendException("Couldn't connect to host, port: smtp.gmail.com, 587; timeout 5000"))
+                .when(mailSender).send(mockMimeMessage);
+
+        // WHEN & THEN
+        assertDoesNotThrow(() -> emailService.sendReminderEmail(mockAppointment));
+        verify(mailSender, times(1)).send(mockMimeMessage);
+    }
+
+    @Test
+    @DisplayName("UT-MAIL-06: Debería manejar citas o pacientes nulos sin lanzar excepciones")
+    void shouldHandleNullAppointmentOrPatientGracefully() {
+        assertDoesNotThrow(() -> emailService.sendConfirmationEmail(null));
+        assertDoesNotThrow(() -> emailService.sendReminderEmail(null));
+
+        Appointment noPatientAppt = Appointment.builder().id(99L).patient(null).build();
+        assertDoesNotThrow(() -> emailService.sendConfirmationEmail(noPatientAppt));
+        assertDoesNotThrow(() -> emailService.sendReminderEmail(noPatientAppt));
+        verify(mailSender, never()).send(any(MimeMessage.class));
+    }
 }

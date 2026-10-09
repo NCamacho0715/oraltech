@@ -91,6 +91,26 @@ public class BackupService {
         return res;
     }
 
+    /**
+     * Verifica si no existe ningún respaldo o si el respaldo más reciente tiene más de {@code hours} horas.
+     */
+    public boolean isLastBackupOlderThanHours(int hours) {
+        File dir = new File(backupDir);
+        if (!dir.exists() || !dir.isDirectory()) {
+            return true;
+        }
+        File[] files = dir.listFiles((d, name) -> name.endsWith(".backup"));
+        if (files == null || files.length == 0) {
+            return true;
+        }
+        long latestModified = Arrays.stream(files)
+                .mapToLong(File::lastModified)
+                .max()
+                .orElse(0L);
+        long thresholdMs = hours * 3_600_000L;
+        return (System.currentTimeMillis() - latestModified) > thresholdMs;
+    }
+
     public Map<String, Object> runBackup() {
         Map<String, Object> result = new LinkedHashMap<>();
         File dir = new File(backupDir);
