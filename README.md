@@ -43,9 +43,22 @@ CREATE DATABASE oraltech_test;
 > **Nota:** Si la contraseña de tu usuario `postgres` o la versión instalada de PostgreSQL cambia en el computador servidor, puedes ajustarla fácilmente en el archivo:
 > `backend/oraltech/src/main/resources/application.properties`
 
-### 3. Iniciar el Backend (Servidor de datos)
-Abre una terminal de **PowerShell**, entra a la carpeta del backend e inicia el servidor:
+### 3. Iniciar el sistema rápidamente (en 1 clic)
+Una vez hayas ejecutado `npm install` la primera vez dentro de la carpeta `frontend`, para el uso diario en el consultorio puedes simplemente hacer **doble clic** sobre el archivo:
+👉 **`iniciar-oraltech.bat`** *(ubicado en la carpeta principal del proyecto).*
 
+Este archivo levantará automáticamente el Backend, el Frontend y abrirá el navegador en `http://localhost:5173`.
+
+> **🔑 Cuenta Administrador inicial por defecto:**
+> Cuando el sistema arranca por primera vez sobre una base de datos nueva y detecta que aún no hay administradores, crea automáticamente la cuenta principal:
+> - **Usuario:** `admin`
+> - **Contraseña:** `Admin123*`
+
+---
+
+### Inicio manual por consola (Alternativa para desarrollo)
+
+**Iniciar el Backend (Servidor de datos):**
 ```powershell
 cd backend/oraltech
 $env:JAVA_HOME = "C:\Program Files\Java\jdk-21"
@@ -53,9 +66,7 @@ $env:JAVA_HOME = "C:\Program Files\Java\jdk-21"
 ```
 El servidor quedará activo en `http://localhost:8080`.
 
-### 4. Iniciar el Frontend (Interfaz visual)
-Abre **otra terminal**, entra a la carpeta `frontend`, instala las dependencias (solo la primera vez) e inicia la pantalla web:
-
+**Iniciar el Frontend (Interfaz visual):**
 ```bash
 cd frontend
 npm install
