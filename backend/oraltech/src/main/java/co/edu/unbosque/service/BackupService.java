@@ -119,8 +119,9 @@ public class BackupService {
         String timestamp = LocalDateTime.now().format(FMT);
         String outFile = backupDir + "/" + database + "_" + timestamp + ".backup";
 
+        String resolvedPgDump = resolvePostgresBinary(pgDump, "pg_dump.exe");
         ProcessBuilder pb = new ProcessBuilder(
-                pgDump, "-h", host, "-p", port, "-U", dbUser, "-F", "c", "-f", outFile, database
+                resolvedPgDump, "-h", host, "-p", port, "-U", dbUser, "-F", "c", "-f", outFile, database
         );
         pb.environment().put("PGPASSWORD", dbPassword);
         pb.redirectErrorStream(true);
@@ -201,7 +202,8 @@ public class BackupService {
 
         // Verify via pg_restore --list (no-op, just reads catalog)
         try {
-            ProcessBuilder pb = new ProcessBuilder(pgRestore, "-l", f.getAbsolutePath());
+            String resolvedPgRestore = resolvePostgresBinary(pgRestore, "pg_restore.exe");
+            ProcessBuilder pb = new ProcessBuilder(resolvedPgRestore, "-l", f.getAbsolutePath());
             pb.redirectErrorStream(true);
             Process proc = pb.start();
             String out = new String(proc.getInputStream().readAllBytes());
@@ -253,8 +255,9 @@ public class BackupService {
         log.info("Respaldo preventivo de seguridad creado exitosamente: {}", preventiveFilename);
 
         try {
+            String resolvedPgRestore = resolvePostgresBinary(pgRestore, "pg_restore.exe");
             ProcessBuilder pb = new ProcessBuilder(
-                    pgRestore, "-h", host, "-p", port, "-U", dbUser,
+                    resolvedPgRestore, "-h", host, "-p", port, "-U", dbUser,
                     "-d", database, "--clean", "--if-exists", f.getAbsolutePath()
             );
             pb.environment().put("PGPASSWORD", dbPassword);
@@ -334,6 +337,20 @@ public class BackupService {
         } catch (Exception e) {
             log.warn("No se pudo realizar la copia secundaria en {}: {}", externalDir, e.getMessage());
         }
+    }
+
+    private String resolvePostgresBinary(String configuredPath, String binaryName) {
+        if (configuredPath != null && new File(configuredPath).exists()) {
+            return configuredPath;
+        }
+        int[] versions = {18, 17, 16, 15, 14};
+        for (int v : versions) {
+            File candidate = new File("C:/Program Files/PostgreSQL/" + v + "/bin/" + binaryName);
+            if (candidate.exists()) {
+                return candidate.getAbsolutePath();
+            }
+        }
+        return configuredPath != null ? configuredPath : binaryName;
     }
 
     private String sanitize(String filename) {

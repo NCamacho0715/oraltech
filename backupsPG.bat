@@ -2,15 +2,19 @@
 setlocal
 
 set "PGDUMP=C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
+if not exist "%PGDUMP%" if exist "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" set "PGDUMP=C:\Program Files\PostgreSQL\17\bin\pg_dump.exe"
+if not exist "%PGDUMP%" if exist "C:\Program Files\PostgreSQL\16\bin\pg_dump.exe" set "PGDUMP=C:\Program Files\PostgreSQL\16\bin\pg_dump.exe"
+if not exist "%PGDUMP%" if exist "C:\Program Files\PostgreSQL\15\bin\pg_dump.exe" set "PGDUMP=C:\Program Files\PostgreSQL\15\bin\pg_dump.exe"
+
 set "HOST=localhost"
 set "PORT=5432"
 set "USER=postgres"
 set "DATABASE=oraltech"
-set "BACKUP_DIR=C:\Oraltech\oraltech\Backups\PostgreSQL"
+set "BACKUP_DIR=C:\Oraltech\Backups\PostgreSQL"
 set "RETENTION_DAYS=30"
 
 REM Configura aqui una ruta EXTERNA si existe. Ejemplo:
-REM set "EXTERNAL_BACKUP_DIR=\\SERVIDOR\Backups\OralTech"
+REM set "EXTERNAL_BACKUP_DIR=E:\Backups\OralTech"
 set "EXTERNAL_BACKUP_DIR="
 
 if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"
