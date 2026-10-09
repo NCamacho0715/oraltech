@@ -34,4 +34,26 @@ public class BackupScheduler {
             log.error("Excepción inesperada durante el respaldo diario programado: {}", e.getMessage(), e);
         }
     }
+
+    /**
+     * Verificación automática tras iniciar el servidor (15s) y cada hora.
+     * Si el computador estuvo apagado en el horario nocturno y el último respaldo tiene más de 24 horas
+     * (o aún no existe ninguno), ejecuta automáticamente el respaldo pendiente.
+     */
+    @Scheduled(
+            initialDelayString = "${backup.startup-delay-ms:15000}",
+            fixedDelayString = "${backup.check-interval-ms:3600000}"
+    )
+    public void checkAndRunMissedBackup() {
+        try {
+            if (backupService.isLastBackupOlderThanHours(24)) {
+                log.info("El último respaldo tiene más de 24 horas (o no existe). Iniciando respaldo automático compensatorio...");
+                runScheduledBackup();
+            } else {
+                log.debug("Verificación de respaldo: existe una copia reciente (< 24 horas).");
+            }
+        } catch (Exception e) {
+            log.warn("No se pudo verificar la antigüedad del último respaldo: {}", e.getMessage());
+        }
+    }
 }

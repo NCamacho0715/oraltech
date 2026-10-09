@@ -78,4 +78,26 @@ class BackupServiceTest {
         assertEquals("oraltech_2026-02-01.backup", list.get(0).get("filename"));
         assertEquals("oraltech_2026-01-01.backup", list.get(1).get("filename"));
     }
+
+    @Test
+    @DisplayName("UT-BACKUP-04: isLastBackupOlderThanHours debería detectar si el último respaldo supera las 24 horas")
+    void shouldDetectWhenLastBackupIsOlderThan24Hours() throws IOException {
+        BackupService service = new BackupService();
+        ReflectionTestUtils.setField(service, "backupDir", tempDir.toString());
+
+        // Sin respaldos -> debe retornar true
+        assertTrue(service.isLastBackupOlderThanHours(24));
+
+        // Con respaldo de hace 26 horas -> debe retornar true
+        Path oldFile = tempDir.resolve("oraltech_old.backup");
+        Files.writeString(oldFile, "backup antiguo");
+        oldFile.toFile().setLastModified(System.currentTimeMillis() - (26L * 3_600_000L));
+        assertTrue(service.isLastBackupOlderThanHours(24));
+
+        // Con respaldo de hace 2 horas -> debe retornar false
+        Path recentFile = tempDir.resolve("oraltech_recent.backup");
+        Files.writeString(recentFile, "backup reciente");
+        recentFile.toFile().setLastModified(System.currentTimeMillis() - (2L * 3_600_000L));
+        assertFalse(service.isLastBackupOlderThanHours(24));
+    }
 }
