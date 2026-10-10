@@ -40,13 +40,17 @@ const CheckboxRow = ({ id, label, checked, locked, onToggle, textField, textValu
 );
 
 const ExamenComplementarioFields = ({ data, locked, onToggle, onTextChange }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-    <CheckboxRow id="rxPanoramica" label="Rx Panorámica" checked={data.rxPanoramica} locked={locked} onToggle={onToggle} />
-    <CheckboxRow id="rxPeriapical" label="Rx Periapical" checked={data.rxPeriapical} locked={locked} onToggle={onToggle}
-      textField="rxPeriapicalComentario" textValue={data.rxPeriapicalComentario} textPlaceholder="Comentario (obligatorio)" onTextChange={onTextChange} />
-    <CheckboxRow id="paqueteOrtodoncia" label="Paquete Ortodoncia" checked={data.paqueteOrtodoncia} locked={locked} onToggle={onToggle} />
-    <CheckboxRow id="otros" label="Otros" checked={data.otros} locked={locked} onToggle={onToggle}
-      textField="otrosTexto" textValue={data.otrosTexto} textPlaceholder="Descripción (obligatoria)" onTextChange={onTextChange} />
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem 2.5rem', marginBottom: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+      <CheckboxRow id="rxPanoramica" label="Rx Panorámica" checked={data.rxPanoramica} locked={locked} onToggle={onToggle} />
+      <CheckboxRow id="rxPeriapical" label="Rx Periapical" checked={data.rxPeriapical} locked={locked} onToggle={onToggle}
+        textField="rxPeriapicalComentario" textValue={data.rxPeriapicalComentario} textPlaceholder="Comentario (obligatorio)" onTextChange={onTextChange} />
+    </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+      <CheckboxRow id="paqueteOrtodoncia" label="Paquete Ortodoncia" checked={data.paqueteOrtodoncia} locked={locked} onToggle={onToggle} />
+      <CheckboxRow id="otros" label="Otros" checked={data.otros} locked={locked} onToggle={onToggle}
+        textField="otrosTexto" textValue={data.otrosTexto} textPlaceholder="Descripción (obligatoria)" onTextChange={onTextChange} />
+    </div>
   </div>
 );
 
@@ -193,7 +197,7 @@ const ExamenComplementarioForm = ({ historiaId, readOnly }) => {
   const handleText = (field, value) => setData(prev => ({ ...prev, [field]: value }));
 
   return (
-    <div style={{ background: 'var(--surface)', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)', marginBottom: '2rem' }}>
+    <div style={{ animation: "fadeIn 0.4s ease-out", width: "100%" }}>
       <ExamenComplementarioHeader
         locked={locked}
         saveError={saveError}

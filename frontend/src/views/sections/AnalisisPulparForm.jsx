@@ -95,7 +95,7 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
   const fechaBloqueo = formatFechaCorta(data.updatedAt || data.createdAt);
 
   return (
-    <div style={{ background: 'var(--surface)', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)', marginBottom: '2rem' }}>
+    <div style={{ animation: "fadeIn 0.4s ease-out", width: "100%" }}>
       <SectionHeaderActions
         title="Análisis Pulpar - Endodóntico"
         titleColor="var(--primary)"
@@ -110,46 +110,57 @@ const AnalisisPulparForm = ({ historiaId, readOnly }) => {
       />
 
       {bloqueo.bloqueado && (
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 1.5rem 0' }}>
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", margin: "0 0 1.5rem 0" }}>
           Registro bloqueado
-          {fechaBloqueo ? ` · ${fechaBloqueo}` : ''}
-          {(data.updatedBy || data.createdBy) ? ` · ${data.updatedBy || data.createdBy}` : ''}
+          {fechaBloqueo ? ` · ${fechaBloqueo}` : ""}
+          {(data.updatedBy || data.createdBy) ? ` · ${data.updatedBy || data.createdBy}` : ""}
         </p>
       )}
       {!bloqueo.bloqueado && bloqueo.desbloqueo && (
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 1.5rem 0' }}>
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", margin: "0 0 1.5rem 0" }}>
           Desbloqueada por {bloqueo.desbloqueo.por}: {bloqueo.desbloqueo.motivo}
         </p>
       )}
 
       {loadError && (
-        <div style={{ border: '1px solid var(--accent)', background: 'rgba(230, 57, 70, 0.08)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
-          <strong style={{ color: 'var(--accent)' }}>No se pudo cargar el análisis pulpar. </strong>
+        <div style={{ border: "1px solid var(--accent)", background: "rgba(230, 57, 70, 0.08)", borderRadius: "8px", padding: "0.8rem 1rem", marginBottom: "1.5rem", fontSize: "0.9rem", color: "var(--text-main)" }}>
+          <strong style={{ color: "var(--accent)" }}>No se pudo cargar el análisis pulpar. </strong>
           {loadError}
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-        <CheckboxRow id="cuellosSensibles" label="Cuellos sensibles" checked={data.cuellosSensibles} onChange={handleCheckboxChange} disabled={locked} />
-        <CheckboxRow id="endoRealizada" label="Endodoncia realizada" checked={data.endoRealizada} onChange={handleCheckboxChange} disabled={locked} />
-        <CheckboxRow id="endoDefectuosa" label="Endodoncia defectuosa" checked={data.endoDefectuosa} onChange={handleCheckboxChange} disabled={locked} />
-        <CheckboxRow id="abcesoFistula" label="Abceso - Fistula" checked={data.abcesoFistula} onChange={handleCheckboxChange} disabled={locked} />
-        <CheckboxRow id="lesionesPeriapicales" label="Lesiones periapicales" checked={data.lesionesPeriapicales} onChange={handleCheckboxChange} disabled={locked} />
-        <CheckboxRow id="qxEndodontica" label="Qx endodóntica" checked={data.qxEndodontica} onChange={handleCheckboxChange} disabled={locked} />
-        <CheckboxRow id="exposicionPulpar" label="Exposición pulpar" checked={data.exposicionPulpar} onChange={handleCheckboxChange} disabled={locked} />
-        <CheckboxRow id="cambioColor" label="Cambio color" checked={data.cambioColor} onChange={handleCheckboxChange} disabled={locked} />
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "1.2rem 2.5rem",
+          marginBottom: "2rem",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <CheckboxRow id="cuellosSensibles" label="Cuellos sensibles" checked={data.cuellosSensibles} onChange={handleCheckboxChange} disabled={locked} />
+          <CheckboxRow id="endoRealizada" label="Endodoncia realizada" checked={data.endoRealizada} onChange={handleCheckboxChange} disabled={locked} />
+          <CheckboxRow id="endoDefectuosa" label="Endodoncia defectuosa" checked={data.endoDefectuosa} onChange={handleCheckboxChange} disabled={locked} />
+          <CheckboxRow id="abcesoFistula" label="Abceso - Fistula" checked={data.abcesoFistula} onChange={handleCheckboxChange} disabled={locked} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <CheckboxRow id="lesionesPeriapicales" label="Lesiones periapicales" checked={data.lesionesPeriapicales} onChange={handleCheckboxChange} disabled={locked} />
+          <CheckboxRow id="qxEndodontica" label="Qx endodóntica" checked={data.qxEndodontica} onChange={handleCheckboxChange} disabled={locked} />
+          <CheckboxRow id="exposicionPulpar" label="Exposición pulpar" checked={data.exposicionPulpar} onChange={handleCheckboxChange} disabled={locked} />
+          <CheckboxRow id="cambioColor" label="Cambio color" checked={data.cambioColor} onChange={handleCheckboxChange} disabled={locked} />
+        </div>
       </div>
 
       <div>
-        <label htmlFor="analisis-pulpar-observaciones" style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Observaciones:</label>
+        <label htmlFor="analisis-pulpar-observaciones" style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: "0.5rem", textTransform: "uppercase" }}>Observaciones:</label>
         <textarea 
           id="analisis-pulpar-observaciones"
           aria-label="Observaciones adicionales de análisis pulpar"
-          value={data.observaciones || ''} 
+          value={data.observaciones || ""} 
           onChange={e => !locked && setData({ ...data, observaciones: e.target.value })}
           disabled={locked}
           placeholder="Escriba aquí cualquier observación adicional..."
-          style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', color: 'var(--text-main)', minHeight: '100px', resize: 'vertical', fontSize: '1rem' }}
+          style={{ width: "100%", padding: "1rem", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--surface)", color: "var(--text-main)", minHeight: "120px", resize: "vertical", fontSize: "1rem" }}
         />
       </div>
       <DesbloqueoModal

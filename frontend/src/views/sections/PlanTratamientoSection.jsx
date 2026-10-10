@@ -177,10 +177,9 @@ const PlanForm = ({
 }) => (
   <div
     style={{
-      background: "var(--surface)",
-      padding: "2rem",
-      borderRadius: "var(--border-radius)",
-      boxShadow: "var(--shadow)",
+      background: "var(--background)",
+      padding: "1.75rem 2rem",
+      borderRadius: "14px",
       border: "1px solid var(--border-color)",
       marginBottom: "2.5rem",
       animation: "fadeIn 0.3s ease-out",
@@ -223,7 +222,7 @@ const PlanForm = ({
 
     <div
       style={{
-        background: "var(--background)",
+        background: "var(--surface)",
         padding: "1.5rem",
         borderRadius: "8px",
         border: "1px solid var(--border-color)",
@@ -243,7 +242,13 @@ const PlanForm = ({
         Añadir Actividades / Pasos
       </p>
       <div
-        style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap" }}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(240px, 2fr) minmax(130px, 1fr) minmax(130px, 1fr) auto",
+          gap: "1rem",
+          marginBottom: "1.5rem",
+          alignItems: "center",
+        }}
       >
         <input
           type="text"
@@ -512,7 +517,7 @@ const PlanTratamientoSection = ({ historiaId, readOnly }) => {
   };
 
   return (
-    <div style={{ animation: "fadeIn 0.4s ease-out" }}>
+    <div style={{ animation: "fadeIn 0.4s ease-out", width: "100%" }}>
       <div
         style={{
           display: "flex",

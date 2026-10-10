@@ -222,6 +222,7 @@ export const ClinicalHistoryTabContent = ({
     className="auth-card"
     style={{
       flex: 1,
+      minWidth: 0,
       padding: "2.5rem",
       minHeight: "600px",
       width: "100%",

@@ -63,7 +63,7 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
 
   return (
     <>
-    <form onSubmit={handleSubmit} style={{ animation: 'fadeIn 0.4s ease-out' }}>
+    <form onSubmit={handleSubmit} style={{ animation: 'fadeIn 0.4s ease-out', width: '100%' }}>
       <div>
         <h3 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-main)', borderBottom: '2px solid rgba(0, 119, 182, 0.1)', paddingBottom: '1rem', marginBottom: '2rem' }}>
             Anamnesis
@@ -82,60 +82,91 @@ const AnamnesisForm = ({ historiaId, readOnly }) => {
           </div>
         )}
         
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label htmlFor="anamnesis-motivo-consulta" style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Motivo de Consulta</label>
-          <textarea
-            id="anamnesis-motivo-consulta"
-            aria-label="Motivo de Consulta"
-            value={data.motivoConsulta}
-            onChange={(e) => setData({ ...data, motivoConsulta: e.target.value })}
-            readOnly={locked}
-            style={{ 
-                width: '100%', 
-                padding: '1rem', 
-                border: '1px solid var(--border-color)', 
-                borderRadius: '8px', 
-                minHeight: '120px', 
-                fontFamily: 'inherit',
-                fontSize: '1rem',
-                outline: 'none',
-                background: 'var(--surface)',
-                color: 'var(--text-main)',
-                resize: 'vertical',
-                transition: 'border-color 0.3s'
-            }}
-            placeholder="¿Por qué viene el paciente?"
-            onFocus={(e) => !locked && (e.target.style.borderColor = 'var(--primary)')}
-            onBlur={(e) => !locked && (e.target.style.borderColor = 'var(--border-color)')}
-          />
-        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "2.5rem",
+            marginBottom: "2rem",
+          }}
+        >
+          <div>
+            <label
+              htmlFor="anamnesis-motivo-consulta"
+              style={{
+                display: "block",
+                fontSize: "1rem",
+                fontWeight: 600,
+                color: "var(--text-main)",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Motivo de Consulta
+            </label>
+            <textarea
+              id="anamnesis-motivo-consulta"
+              aria-label="Motivo de Consulta"
+              value={data.motivoConsulta}
+              onChange={(e) => setData({ ...data, motivoConsulta: e.target.value })}
+              readOnly={locked}
+              style={{
+                width: "100%",
+                padding: "1rem",
+                border: "1px solid var(--border-color)",
+                borderRadius: "8px",
+                minHeight: "220px",
+                fontFamily: "inherit",
+                fontSize: "1rem",
+                outline: "none",
+                background: "var(--surface)",
+                color: "var(--text-main)",
+                resize: "vertical",
+                transition: "border-color 0.3s",
+              }}
+              placeholder="¿Por qué viene el paciente?"
+              onFocus={(e) => !locked && (e.target.style.borderColor = "var(--primary)")}
+              onBlur={(e) => !locked && (e.target.style.borderColor = "var(--border-color)")}
+            />
+          </div>
 
-        <div style={{ marginBottom: '2rem' }}>
-          <label htmlFor="anamnesis-estado-actual" style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Estado Actual</label>
-          <textarea
-            id="anamnesis-estado-actual"
-            aria-label="Estado Actual"
-            value={data.estadoActual}
-            onChange={(e) => setData({ ...data, estadoActual: e.target.value })}
-            readOnly={locked}
-            style={{ 
-                width: '100%', 
-                padding: '1rem', 
-                border: '1px solid var(--border-color)', 
-                borderRadius: '8px', 
-                minHeight: '180px', 
-                fontFamily: 'inherit',
-                fontSize: '1rem',
-                outline: 'none',
-                background: 'var(--surface)',
-                color: 'var(--text-main)',
-                resize: 'vertical',
-                transition: 'border-color 0.3s'
-            }}
-            placeholder="Descripción detallada del estado actual..."
-            onFocus={(e) => !locked && (e.target.style.borderColor = 'var(--primary)')}
-            onBlur={(e) => !locked && (e.target.style.borderColor = 'var(--border-color)')}
-          />
+          <div>
+            <label
+              htmlFor="anamnesis-estado-actual"
+              style={{
+                display: "block",
+                fontSize: "1rem",
+                fontWeight: 600,
+                color: "var(--text-main)",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Estado Actual
+            </label>
+            <textarea
+              id="anamnesis-estado-actual"
+              aria-label="Estado Actual"
+              value={data.estadoActual}
+              onChange={(e) => setData({ ...data, estadoActual: e.target.value })}
+              readOnly={locked}
+              style={{
+                width: "100%",
+                padding: "1rem",
+                border: "1px solid var(--border-color)",
+                borderRadius: "8px",
+                minHeight: "220px",
+                fontFamily: "inherit",
+                fontSize: "1rem",
+                outline: "none",
+                background: "var(--surface)",
+                color: "var(--text-main)",
+                resize: "vertical",
+                transition: "border-color 0.3s",
+              }}
+              placeholder="Descripción detallada del estado actual..."
+              onFocus={(e) => !locked && (e.target.style.borderColor = "var(--primary)")}
+              onBlur={(e) => !locked && (e.target.style.borderColor = "var(--border-color)")}
+            />
+          </div>
         </div>
 
         <SectionSaveFooter

@@ -303,7 +303,7 @@ const AntecedentesForm = ({ historiaId, patientId, readOnly }) => {
   const fechaBloqueo = formatFechaCorta(meta.updatedAt || meta.createdAt);
 
   return (
-    <form onSubmit={handleSubmit} style={{ animation: "fadeIn 0.4s ease-out" }}>
+    <form onSubmit={handleSubmit} style={{ animation: "fadeIn 0.4s ease-out", width: "100%" }}>
       <h3
         style={{
           fontSize: "1.4rem",
