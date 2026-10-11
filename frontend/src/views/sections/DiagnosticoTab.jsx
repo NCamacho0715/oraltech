@@ -82,7 +82,7 @@ const SubseccionBloqueoBanner = ({ bloqueo, meta, seccionKey, readOnly }) => (
 );
 
 const DiagnosticoFields = ({ diag, setDiag, lockedDiag }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem 2.5rem', marginBottom: '2rem' }}>
     {DIAG_FIELDS.map(({ key, label }) => (
       <div key={key}>
         <label htmlFor={`diag-${key}`} style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>{label}</label>
@@ -337,7 +337,7 @@ const DiagnosticoTab = ({ historiaId, readOnly }) => {
   };
 
   return (
-    <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+    <div style={{ animation: 'fadeIn 0.4s ease-out', width: '100%' }}>
       {/* Diagnostico & Pronostico */}
       <div style={{ marginBottom: '3rem' }}>
         <h3 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-main)', borderBottom: '2px solid rgba(0, 119, 182, 0.1)', paddingBottom: '1rem', marginBottom: '2rem' }}>

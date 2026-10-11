@@ -64,7 +64,7 @@ export const PatientCard = ({ patient, navigate, isAdmin, openDeleteConfirm }) =
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                 {patient.idType}: {patient.idNumber}
             </p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f0f0f0', paddingTop: '1rem', marginTop: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                     <strong>Edad:</strong> {patient.age} años
                 </div>

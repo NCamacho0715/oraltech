@@ -267,39 +267,48 @@ const EvolucionForm = ({
   handleSave,
   onCancel,
 }) => (
-  <form onSubmit={handleSave} style={{ background: 'var(--surface)', padding: '2rem', borderRadius: 'var(--border-radius)', boxShadow: 'var(--shadow)', border: '1px solid var(--border-color)', marginBottom: '2.5rem', animation: 'fadeIn 0.3s ease-out' }}>
+  <form onSubmit={handleSave} style={{ background: 'var(--background)', padding: '1.75rem 2rem', borderRadius: '14px', border: '1px solid var(--border-color)', marginBottom: '2.5rem', animation: 'fadeIn 0.3s ease-out' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
       <h4 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary)', margin: 0 }}>Nueva Entrada de Evolución</h4>
       <button type="button" onClick={onCancel} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
     </div>
 
-    <div style={{ marginBottom: '1.5rem' }}>
-      <label htmlFor="evo-procedimiento" style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Procedimiento realizado *</label>
-      <textarea
-        id="evo-procedimiento"
-        aria-label="Procedimiento realizado"
-        value={newEvo.procedimiento}
-        onChange={e => setNewEvo(prev => ({ ...prev, procedimiento: e.target.value }))}
-        required
-        style={{ width: '100%', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '8px', minHeight: '120px', fontSize: '1rem', fontFamily: 'inherit', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)', resize: 'vertical', transition: 'border-color 0.3s' }}
-        placeholder="Describe el procedimiento realizado hoy..."
-        onFocus={(e) => (e.target.style.borderColor = 'var(--primary)')}
-        onBlur={(e) => (e.target.style.borderColor = 'var(--border-color)')}
-      />
-    </div>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "2rem",
+        marginBottom: "1.5rem",
+      }}
+    >
+      <div>
+        <label htmlFor="evo-procedimiento" style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Procedimiento realizado *</label>
+        <textarea
+          id="evo-procedimiento"
+          aria-label="Procedimiento realizado"
+          value={newEvo.procedimiento}
+          onChange={e => setNewEvo(prev => ({ ...prev, procedimiento: e.target.value }))}
+          required
+          style={{ width: '100%', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '8px', minHeight: '120px', fontSize: '1rem', fontFamily: 'inherit', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)', resize: 'vertical', transition: 'border-color 0.3s' }}
+          placeholder="Describe el procedimiento realizado hoy..."
+          onFocus={(e) => (e.target.style.borderColor = 'var(--primary)')}
+          onBlur={(e) => (e.target.style.borderColor = 'var(--border-color)')}
+        />
+      </div>
 
-    <div style={{ marginBottom: '1.5rem' }}>
-      <label htmlFor="evo-observaciones" style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Observaciones</label>
-      <textarea
-        id="evo-observaciones"
-        aria-label="Observaciones de la consulta"
-        value={newEvo.observaciones}
-        onChange={e => setNewEvo(prev => ({ ...prev, observaciones: e.target.value }))}
-        style={{ width: '100%', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '8px', minHeight: '80px', fontSize: '1rem', fontFamily: 'inherit', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)', resize: 'vertical', transition: 'border-color 0.3s' }}
-        placeholder="Observaciones de la consulta..."
-        onFocus={(e) => (e.target.style.borderColor = 'var(--primary)')}
-        onBlur={(e) => (e.target.style.borderColor = 'var(--border-color)')}
-      />
+      <div>
+        <label htmlFor="evo-observaciones" style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>Observaciones</label>
+        <textarea
+          id="evo-observaciones"
+          aria-label="Observaciones de la consulta"
+          value={newEvo.observaciones}
+          onChange={e => setNewEvo(prev => ({ ...prev, observaciones: e.target.value }))}
+          style={{ width: '100%', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '8px', minHeight: '120px', fontSize: '1rem', fontFamily: 'inherit', outline: 'none', background: 'var(--surface)', color: 'var(--text-main)', resize: 'vertical', transition: 'border-color 0.3s' }}
+          placeholder="Observaciones de la consulta..."
+          onFocus={(e) => (e.target.style.borderColor = 'var(--primary)')}
+          onBlur={(e) => (e.target.style.borderColor = 'var(--border-color)')}
+        />
+      </div>
     </div>
 
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -497,7 +506,7 @@ const EvolucionesSection = ({ historiaId, patientId, readOnly }) => {
   };
 
   return (
-    <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+    <div style={{ animation: 'fadeIn 0.4s ease-out', width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid rgba(0, 119, 182, 0.1)', paddingBottom: '1rem', marginBottom: '2rem' }}>
         <h3 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>Evoluciones Clínicas</h3>
         {!readOnly && !showForm && (

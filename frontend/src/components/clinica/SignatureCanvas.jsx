@@ -77,28 +77,76 @@ const SignatureCanvas = ({
   };
 
   return (
-    <div className="flex flex-col gap-2 border p-2 rounded bg-white shadow-sm">
-      <span className="text-sm font-semibold text-gray-700">{label}</span>
-      <canvas
-        ref={canvasRef}
-        width={width}
-        height={height}
-        aria-label={label}
-        onMouseDown={startDrawing}
-        onMouseMove={draw}
-        onMouseUp={stopDrawing}
-        onMouseLeave={stopDrawing}
-        onTouchStart={startDrawing}
-        onTouchMove={draw}
-        onTouchEnd={stopDrawing}
-        className="border border-dashed border-gray-300 cursor-crosshair bg-gray-50 rounded"
-        style={{ touchAction: "none" }}
-      />
-      <div className="flex justify-end gap-2">
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "0.75rem",
+        border: "1px solid var(--border-color)",
+        padding: "1rem",
+        borderRadius: "12px",
+        background: "var(--surface)",
+        boxShadow: "var(--shadow)",
+        width: "100%",
+      }}
+    >
+      <span
+        style={{
+          fontSize: "0.9rem",
+          fontWeight: 600,
+          color: "var(--text-main)",
+        }}
+      >
+        {label}
+      </span>
+      <div
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+          background: "#ffffff",
+          borderRadius: "8px",
+          border: "1px dashed var(--border-color)",
+          padding: "4px",
+          overflow: "hidden",
+        }}
+      >
+        <canvas
+          ref={canvasRef}
+          width={width}
+          height={height}
+          aria-label={label}
+          onMouseDown={startDrawing}
+          onMouseMove={draw}
+          onMouseUp={stopDrawing}
+          onMouseLeave={stopDrawing}
+          onTouchStart={startDrawing}
+          onTouchMove={draw}
+          onTouchEnd={stopDrawing}
+          style={{
+            touchAction: "none",
+            width: "100%",
+            maxWidth: `${width}px`,
+            height: "auto",
+            display: "block",
+            cursor: "crosshair",
+            background: "#ffffff",
+          }}
+        />
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
         <button
           type="button"
           onClick={clear}
-          className="px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded transition-colors"
+          style={{
+            padding: "0.4rem 0.85rem",
+            fontSize: "0.8rem",
+            background: "var(--secondary-soft)",
+            color: "var(--text-secondary)",
+            borderRadius: "6px",
+            border: "1px solid var(--border-color)",
+            fontWeight: 500,
+          }}
         >
           Limpiar
         </button>
@@ -106,7 +154,17 @@ const SignatureCanvas = ({
           type="button"
           onClick={handleSave}
           disabled={isEmpty}
-          className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50 transition-colors"
+          style={{
+            padding: "0.4rem 1rem",
+            fontSize: "0.8rem",
+            background: "var(--primary)",
+            color: "#ffffff",
+            borderRadius: "6px",
+            border: "none",
+            fontWeight: 600,
+            opacity: isEmpty ? 0.5 : 1,
+            cursor: isEmpty ? "not-allowed" : "pointer",
+          }}
         >
           Confirmar Firma
         </button>

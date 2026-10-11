@@ -186,7 +186,7 @@ export const ColumnaIzquierdaAntecedentes = ({
           readOnly={locked}
         />
         <CheckboxRow
-          label="Fiebre Neumática"
+          label="Fiebre Reumática"
           field="fiebreReumatica"
           data={data}
           onChange={handleChange}

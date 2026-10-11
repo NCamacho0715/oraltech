@@ -89,7 +89,7 @@ const PatientForm = () => {
     };
 
     return (
-        <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
+        <div style={{ padding: '2rem', maxWidth: '1300px', width: '100%', margin: '0 auto' }}>
             <button 
                 onClick={() => navigate('/patients')}
                 style={{ background: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', fontWeight: 500 }}

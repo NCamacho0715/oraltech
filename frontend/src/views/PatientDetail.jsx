@@ -12,12 +12,12 @@ const DetailItem = ({ label, value }) => (
 );
 
 const Section = ({ icon, title, children }) => (
-    <div className="auth-card" style={{ maxWidth: '100%', padding: '2rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem', borderBottom: '1px solid #f0f0f0', paddingBottom: '0.5rem' }}>
+    <div className="auth-card" style={{ maxWidth: '100%', padding: '2rem', marginBottom: '1.5rem', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
             <div style={{ color: 'var(--primary)' }}>{icon}</div>
             <h3 style={{ fontSize: '1.2rem', color: 'var(--text-main)', fontWeight: 600 }}>{title}</h3>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
             {children}
         </div>
     </div>
@@ -85,7 +85,7 @@ const PatientDetail = () => {
     if (!patient) return <div style={{ padding: '2rem', textAlign: 'center' }}>Paciente no encontrado</div>;
 
     return (
-        <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
+        <div style={{ padding: '2rem', maxWidth: '1500px', width: '100%', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <button 
                     onClick={() => navigate('/patients')}

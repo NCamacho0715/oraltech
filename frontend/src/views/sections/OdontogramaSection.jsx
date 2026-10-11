@@ -132,16 +132,16 @@ const ProtesisArchSection = ({ title, borderColor, accentColor, items, protesis,
 const ProtesisCard = (props) => {
   const { protesis, setProtesis, locked, bloqueo } = props;
   return (
-    <div style={{ marginTop: '3rem', background: 'var(--surface)', padding: '2rem', borderRadius: '15px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)', position: 'relative' }}>
+    <div style={{ marginTop: "3rem", borderTop: "2px solid var(--border-color)", paddingTop: "2rem" }}>
       <ProtesisHeader {...props} />
 
       {bloqueo.desbloqueo && (
-        <div style={{ border: '1px solid var(--border-color)', background: 'var(--secondary-soft)', borderRadius: '8px', padding: '0.8rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+        <div style={{ border: "1px solid var(--border-color)", background: "var(--secondary-soft)", borderRadius: "8px", padding: "0.8rem 1rem", marginBottom: "1.5rem", fontSize: "0.9rem", color: "var(--text-main)" }}>
           Desbloqueada por {bloqueo.desbloqueo.por}: {bloqueo.desbloqueo.motivo}
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2.5rem" }}>
         <ProtesisArchSection
           title="Arco Superior"
           borderColor="var(--primary)"
@@ -311,7 +311,7 @@ const OdontogramaSection = ({ historiaId, readOnly }) => {
   if (loading) return <div className="text-center p-10">Cargando Odontograma...</div>;
 
   return (
-    <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+    <div style={{ animation: 'fadeIn 0.4s ease-out', width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '2rem' }}>
           <h3 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>Odontograma</h3>
           {lockedOdon ? (

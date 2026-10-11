@@ -313,7 +313,7 @@ const ExamenClinicoForm = ({ historiaId, readOnly }) => {
   const fechaBloqueo = formatFechaCorta(meta.updatedAt || meta.createdAt);
 
   return (
-    <form onSubmit={handleSubmit} style={{ animation: 'fadeIn 0.4s ease-out' }}>
+    <form onSubmit={handleSubmit} style={{ animation: 'fadeIn 0.4s ease-out', width: '100%' }}>
         <h3 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-main)', borderBottom: '2px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '2rem' }}>
             Examen Clínico
         </h3>

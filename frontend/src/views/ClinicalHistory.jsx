@@ -138,7 +138,8 @@ const ClinicalHistory = () => {
     <div
       style={{
         padding: "2rem",
-        maxWidth: "1400px",
+        maxWidth: "1650px",
+        width: "100%",
         margin: "0 auto",
         display: "flex",
         flexDirection: "column",
@@ -159,6 +160,7 @@ const ClinicalHistory = () => {
           gap: "2rem",
           flex: 1,
           alignItems: "flex-start",
+          width: "100%",
         }}
       >
         <ClinicalHistorySidebar
