@@ -50,9 +50,7 @@ Una vez hayas ejecutado `npm install` la primera vez dentro de la carpeta `front
 Este archivo levantará automáticamente el Backend, el Frontend y abrirá el navegador en `http://localhost:5173`.
 
 > **🔑 Cuenta Administrador inicial por defecto:**
-> Cuando el sistema arranca por primera vez sobre una base de datos nueva y detecta que aún no hay administradores, crea automáticamente la cuenta principal:
-> - **Usuario:** `admin`
-> - **Contraseña:** `Admin123*`
+> Cuando el sistema arranca por primera vez sobre una base de datos nueva y detecta que aún no hay administradores, crea automáticamente la cuenta principal.
 
 ---
 
